@@ -7,6 +7,7 @@ fname = 'data/VCTK-Corpus/wav48/p225/p225_001.wav'
 wave, sr = librosa.load(fname, mono=True, sr=None)
 stft = librosa.stft(wave)
 mel = librosa.feature.melspectrogram(y=wave, n_mels=80)
+print(mel.shape)
 
 print(wave)
 with open('test.npy', 'wb') as f:

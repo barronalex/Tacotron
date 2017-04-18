@@ -27,7 +27,6 @@ def make_sequence_example(stft, mel, text, speaker):
     stft = stft.flatten()
     mel = mel.flatten()
 
-
     sequence = tf.train.SequenceExample()
 
     sequence.context.feature['speech_length'].int64_list.value.append(len(stft))
