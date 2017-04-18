@@ -10,14 +10,14 @@ class InferenceHelper(CustomHelper):
         return (finished, next_inputs)
 
     def _sample_fn(self, time, outputs, state):
-        sample_ids = tf.cast(
-               tf.argmax(outputs, axis=-1), tf.int32)
-        return sample_ids
+        # we're not sampling from a vocab so we don't care about this function
+        return tf.zeros(self._batch_size, dtype=tf.int32)
 
     def _next_inputs_fn(self, time, outputs, state, sample_ids):
         del time, sample_ids
+        # TODO find a sensible way to figure out when we're finished decoding
         finished = tf.tile([False], [self._batch_size])
-        next_inputs = outputs
+        next_inputs = tf.slice(outputs, [0,0], [-1, 80])
         return (finished, next_inputs, state)
 
     def __init__(self, batch_size):
@@ -25,6 +25,10 @@ class InferenceHelper(CustomHelper):
 
 def highway(inputs, units=128, scope='highway'):
     with tf.variable_scope(scope):
+        # correct input shape
+        if inputs.shape[-1] != units:
+            inputs = tf.layers.dense(inputs, units=units)
+
         T = tf.layers.dense(
                 inputs,
                 units=units,

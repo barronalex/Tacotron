@@ -9,6 +9,7 @@ import glob
 import pandas as pd
 import pickle as pkl
 from tqdm import tqdm
+import sys
 
 DATA_DIR = 'data/'
 
@@ -33,20 +34,16 @@ def make_sequence_example(stft, mel, text, speaker):
     sequence.context.feature['text_length'].int64_list.value.append(len(text))
     sequence.context.feature['speaker'].int64_list.value.append(int(speaker))
 
-    #stft_real_feature = sequence.feature_lists.feature_list["stft_real"]
-    #stft_imag_feature = sequence.feature_lists.feature_list["stft_imag"]
-    mel_real_feature = sequence.feature_lists.feature_list["mel_real"]
-    mel_imag_feature = sequence.feature_lists.feature_list["mel_imag"]
+    mel_feature = sequence.feature_lists.feature_list["mel"]
+    stft_feature = sequence.feature_lists.feature_list["stft"]
 
     text_feature = sequence.feature_lists.feature_list["text"]
 
-    #for s in stft:
-        #stft_real_feature.feature.add().float_list.value.append(s.real)
-        #stft_imag_feature.feature.add().float_list.value.append(s.imag)
+    for s in stft:
+        stft_feature.feature.add().float_list.value.append(s)
 
     for m in mel:
-        mel_real_feature.feature.add().float_list.value.append(m.real)
-        mel_imag_feature.feature.add().float_list.value.append(m.imag)
+        mel_feature.feature.add().float_list.value.append(m)
 
     for c in text:
         text_feature.feature.add().int64_list.value.append(c)
@@ -75,9 +72,13 @@ def preprocess_vctk():
             wave_file = DATA_DIR + 'VCTK-Corpus/wav48/%s/' % f[:4] + f + '.wav'
             txt_file = DATA_DIR + 'VCTK-Corpus/txt/%s/' % f[:4] + f + '.txt'
 
-            wave, sr = librosa.load(wave_file, mono=True, sr=None)
-            stft = librosa.stft(wave)
+            wave, sr = librosa.load(wave_file, mono=True, sr=24000)
+
+            stft = librosa.stft(wave, n_fft=2048, win_length=1200, hop_length=300)
+            stft = np.log(np.abs(stft))
+
             mel = librosa.feature.melspectrogram(S=stft, n_mels=80)
+            mel = np.log(np.abs(mel))
             assert stft.shape[1] == mel.shape[1]
 
             with open(txt_file, 'r') as tff:
