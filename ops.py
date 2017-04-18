@@ -1,0 +1,99 @@
+import tensorflow as tf
+from tensorflow.contrib.seq2seq.python.ops.helper import CustomHelper
+from tensorflow.contrib.rnn import *
+
+class InferenceHelper(CustomHelper):
+
+    def _initialize_fn(self):
+        finished = tf.tile([False], [self._batch_size])
+        next_inputs = tf.zeros([self._batch_size, 80], dtype=tf.float32)
+        return (finished, next_inputs)
+
+    def _sample_fn(self, time, outputs, state):
+        sample_ids = tf.cast(
+               tf.argmax(outputs, axis=-1), tf.int32)
+        return sample_ids
+
+    def _next_inputs_fn(self, time, outputs, state, sample_ids):
+        del time, sample_ids
+        finished = tf.tile([False], [self._batch_size])
+        next_inputs = outputs
+        return (finished, next_inputs, state)
+
+    def __init__(self, batch_size):
+        self._batch_size = batch_size
+
+def highway(inputs, units=128, scope='highway'):
+    with tf.variable_scope(scope):
+        T = tf.layers.dense(
+                inputs,
+                units=units,
+                activation=tf.nn.sigmoid,
+        )
+        # TODO update bias initial value
+
+        H = tf.layers.dense(
+                inputs,
+                units=units,
+                activation=tf.nn.relu
+        )
+
+        C = H*T + inputs*(1-T)
+        return C
+
+def CBHG(inputs, sequence_len, K=16, c=[128,128,128], gru_units=128, num_highway_layers=4, num_conv_proj=2):
+    # 1D convolution bank
+    conv_bank = [tf.layers.conv1d(
+        inputs,
+        filters=c[0],
+        kernel_size=k,
+        padding='same',
+        activation=tf.nn.relu
+    ) for k in range(1, K+1)]
+
+    conv_bank = tf.concat(conv_bank, -1)
+
+    conv_bank = tf.layers.batch_normalization(conv_bank)
+
+    conv_bank = tf.layers.max_pooling1d(
+            conv_bank, 
+            pool_size=2,
+            strides=1,
+            padding='same'
+        )
+
+    assert num_conv_proj == len(c) - 1
+    conv_proj = conv_bank
+    for layer in range(num_conv_proj):
+        activation = None if layer == num_conv_proj - 1 else tf.nn.relu
+        # conv projections
+        conv_proj = tf.layers.conv1d(
+                conv_bank,
+                filters=c[layer+1],
+                kernel_size=3,
+                padding='same',
+                activation=activation
+        )
+        conv_proj = tf.layers.batch_normalization(conv_proj)
+
+    # residual connection
+    conv_res = conv_proj + inputs
+
+    # highway feature extraction
+    h = conv_res
+    for layer in range(num_highway_layers):
+        h = highway(h, scope='highway_' + str(layer))
+
+    # bi-GRU
+    forward_gru_cell = GRUCell(gru_units)
+    backward_gru_cell = GRUCell(gru_units)
+    out = tf.nn.bidirectional_dynamic_rnn(
+            forward_gru_cell,
+            backward_gru_cell,
+            h,
+            sequence_length=sequence_len,
+            dtype=tf.float32
+    )
+    out = tf.concat(out[0], -1)
+
+    return out
