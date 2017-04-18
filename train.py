@@ -14,7 +14,7 @@ restore = False
 
 def train(config, num_steps=100):
 
-    config.save_path = 'tt'
+    config.save_path = ''
 
     filename_queue = tf.train.string_input_producer(['data/squad/proto/train.proto'], num_epochs=None)
 
