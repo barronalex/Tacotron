@@ -12,6 +12,7 @@ from tqdm import tqdm
 import sys
 
 DATA_DIR = 'data/'
+MAX_SPEECH_LENGTH = 400
 
 vocab = {}
 ivocab = {}
@@ -25,14 +26,20 @@ def process_char(char):
 
 def make_sequence_example(stft, mel, text, speaker):
     assert stft.shape[0] == 1025
-    stft = stft.flatten()
-    mel = mel.flatten()
+
+    mel = mel[:, :MAX_SPEECH_LENGTH]
+    stft = stft[:, :MAX_SPEECH_LENGTH]
+
+    assert stft.shape[1] <= MAX_SPEECH_LENGTH
 
     sequence = tf.train.SequenceExample()
 
-    sequence.context.feature['speech_length'].int64_list.value.append(len(stft))
+    sequence.context.feature['speech_length'].int64_list.value.append(stft.shape[1])
     sequence.context.feature['text_length'].int64_list.value.append(len(text))
     sequence.context.feature['speaker'].int64_list.value.append(int(speaker))
+
+    stft = stft.flatten()
+    mel = mel.flatten()
 
     mel_feature = sequence.feature_lists.feature_list["mel"]
     stft_feature = sequence.feature_lists.feature_list["stft"]
@@ -54,8 +61,14 @@ def make_sequence_example(stft, mel, text, speaker):
 def preprocess_vctk():
     # adapted from https://github.com/buriburisuri/speech-to-text-wavenet/blob/master/preprocess.py
 
+    mini = True
+    if mini:
+        proto_file = DATA_DIR + 'VCTK-Corpus/mini_train.proto'
+    else:
+        proto_file = DATA_DIR + 'VCTK-Corpus/train.proto'
+
     # set up TensorFlow proto
-    with open(DATA_DIR + 'VCTK-Corpus/train.proto', 'w') as pf:
+    with open(proto_file, 'w') as pf:
         writer = tf.python_io.TFRecordWriter(pf.name)
 
         # read label-info
@@ -87,6 +100,7 @@ def preprocess_vctk():
                 #TODO possibly normalize text here?
             
             speaker = f[1:4]
+            if mini and i > 9: break
             if speaker != '225': break
 
             sequence = make_sequence_example(stft, mel, text, speaker)

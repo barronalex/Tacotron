@@ -57,7 +57,7 @@ def load_vocab():
 if __name__ == '__main__':
     filename_queue = tf.train.string_input_producer(['data/VCTK-Corpus/train.proto'], num_epochs=None)
 
-    batches = batch_inputs(filename_queue, train=False)
+    batches = batch_inputs(filename_queue)
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
         coord = tf.train.Coordinator()

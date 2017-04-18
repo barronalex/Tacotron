@@ -87,8 +87,6 @@ class Tacotron(object):
             output = ops.CBHG(seq2seq_output, inputs['speech_length'], K=8, c=[128,256,80])
             output = tf.layers.dense(output, units=1025)
 
-        print(output.shape)
-
         return seq2seq_output, output
 
     def add_loss_op(self, seq2seq_output, output, mel, linear):
@@ -112,18 +110,23 @@ class Tacotron(object):
 if __name__ == '__main__':
     # tests
     with tf.Session() as sess:
-        text = tf.ones([64, 129], dtype=tf.int32)
-        sl = tf.ones([64], dtype=tf.int32)*50
+        text = tf.ones([32, 129], dtype=tf.int32)
+        sl = tf.ones([32], dtype=tf.int32)*50
 
-        mel = tf.random_normal([64, 193, 80])
-        mel_sl = tf.ones([64], dtype=tf.int32)*50
+        mel = tf.random_normal([32, 193, 80])
+        stft = tf.random_normal([32, 193, 1025])
+        mel_sl = tf.concat(
+                [tf.ones([16], dtype=tf.int32)*192, tf.ones([16], dtype=tf.int32)*50],
+                axis=0)
 
         config = Config()
-        config.vocab_size = 50
-        inputs = {'text': text, 'text_length': sl, 'mel': mel, 'speech_length': mel_sl}
+        config.vocab_size = 100
+        inputs = {'text': text, 'text_length': sl, 'mel': mel, 'stft': stft, 'speech_length': mel_sl}
         model = Tacotron(config, inputs)
 
         tf.global_variables_initializer().run()
+        loss = sess.run(model.loss)
+        print(loss)
         
 
 

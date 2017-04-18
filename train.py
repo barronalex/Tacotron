@@ -12,11 +12,11 @@ from tacotron import Tacotron, Config
 SAVE_EVERY = 1000
 restore = False
 
-def train(config, num_steps=100):
+def train(config, num_steps=10000):
 
     config.save_path = ''
 
-    filename_queue = tf.train.string_input_producer(['data/squad/proto/train.proto'], num_epochs=None)
+    filename_queue = tf.train.string_input_producer(['data/VCTK-Corpus/train.proto'], num_epochs=None)
 
     batch_inputs = data_input.batch_inputs(filename_queue)
 
@@ -40,12 +40,12 @@ def train(config, num_steps=100):
             saver.restore(sess, 'weights/' + config.save_path)
 
         for step in tqdm(range(num_steps)):
-            out = sess.run([model.train_op, model.loss, model.output, model.merged])
-            _, loss, output, summary = out
+            out = sess.run([model.train_op, model.loss, model.output, model.merged, batch_inputs])
+            _, loss, output, summary, inputs = out
             train_writer.add_summary(summary, step)
-            #print(loss)
 
             if step % SAVE_EVERY == 0 and step != 0:
+                print('saving weights')
                 if not os.path.exists('weights/' + config.save_path):
                     os.makedirs('weights/' + config.save_path)
                 saver.save(sess, 'weights/' + config.save_path, global_step=step)
