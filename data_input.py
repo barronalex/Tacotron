@@ -1,7 +1,8 @@
 import tensorflow as tf
+import numpy as np
 import pickle as pkl
 
-def read_sequence_example(filename_queue):
+def read_sequence_example(filename_queue, r=1):
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
     context, features = tf.parse_single_sequence_example(
@@ -20,24 +21,25 @@ def read_sequence_example(filename_queue):
     # create one dictionary with all inputs
     features.update(context)
 
-    features['stft'] = tf.reshape(features['stft'], (-1, 1025))
-    features['mel'] = tf.reshape(features['mel'], (-1, 80))
+    features['stft'] = tf.reshape(features['stft'], (-1, 1025*r))
+    features['mel'] = tf.reshape(features['mel'], (-1, 80*r))
 
     return features
 
-def batch_inputs(filename_queue, batch_size=32, train=True):
+def batch_inputs(filename_queue, batch_size=32, r=1, train=True):
     with tf.device('/cpu:0'):
-        example = read_sequence_example(filename_queue)
+        example = read_sequence_example(filename_queue, r=r)
         if train:
             # separate context length so it can be used to determine bucketing
             speech_length = tf.to_int32(example['speech_length'])
             del example['speech_length']
+            boundaries = [int(x/r) for x in [200, 400, 600, 800, 1000]]
             speech_length, batches = tf.contrib.training.bucket_by_sequence_length(
                         speech_length,
                         example,
                         batch_size=batch_size,
                         dynamic_pad=True,
-                        bucket_boundaries=[200, 400, 600, 800, 1000]
+                        bucket_boundaries=boundaries
                 )
             batches['speech_length'] = speech_length
             return batches
@@ -48,10 +50,10 @@ def batch_inputs(filename_queue, batch_size=32, train=True):
                     allow_smaller_final_batch=True)
             return batches
 
-def load_vocab():
-    with open('data/vocab.pkl', 'rb') as vf:
-        ivocab = pkl.load(vf)
-    return ivocab
+def load_meta():
+    with open('data/meta.pkl', 'rb') as vf:
+        meta = pkl.load(vf)
+    return meta
 
 # basic test
 if __name__ == '__main__':

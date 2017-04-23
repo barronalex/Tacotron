@@ -11,8 +11,10 @@ import pickle as pkl
 from tqdm import tqdm
 import sys
 
+
+mini = False
+r = 5
 DATA_DIR = 'data/'
-MAX_SPEECH_LENGTH = 400
 
 vocab = {}
 ivocab = {}
@@ -24,17 +26,33 @@ def process_char(char):
         ivocab[next_index] = char
     return vocab[char]
 
+def reshape_frames(signal):
+    pad_length = signal.shape[1] % (4*r)
+    pad_length = 4*r - pad_length if pad_length > 0 else 0
+    signal = np.pad(signal, ((0,0), (0,pad_length)), 'constant', constant_values=0)
+
+    # rearrange frames based on value of r
+    # split into sections of shape (80, 4*r)
+    split_points = np.arange(4*r, signal.shape[1]+1, step=4*r)
+    splits = np.split(signal, split_points, axis=1)
+    new_signal = np.concatenate([np.concatenate(np.split(s, r, axis=1), axis=0) for s in splits[:-1]], axis=1)
+    return new_signal.T
+
+
 def make_sequence_example(stft, mel, text, speaker):
     assert stft.shape[0] == 1025
 
-    mel = mel[:, :MAX_SPEECH_LENGTH]
-    stft = stft[:, :MAX_SPEECH_LENGTH]
-
-    assert stft.shape[1] <= MAX_SPEECH_LENGTH
+    # pad time dimension out to nearest multiple of 4
+    # this allows us to easily interleave sequences of non-overlapping frames later
 
     sequence = tf.train.SequenceExample()
 
-    sequence.context.feature['speech_length'].int64_list.value.append(stft.shape[1])
+    mel = reshape_frames(mel)
+    stft = reshape_frames(stft)
+    print(mel.shape)
+    print(stft.shape)
+
+    sequence.context.feature['speech_length'].int64_list.value.append(mel.shape[0])
     sequence.context.feature['text_length'].int64_list.value.append(len(text))
     sequence.context.feature['speaker'].int64_list.value.append(int(speaker))
 
@@ -61,7 +79,6 @@ def make_sequence_example(stft, mel, text, speaker):
 def preprocess_vctk():
     # adapted from https://github.com/buriburisuri/speech-to-text-wavenet/blob/master/preprocess.py
 
-    mini = True
     if mini:
         proto_file = DATA_DIR + 'VCTK-Corpus/mini_train.proto'
     else:
@@ -107,9 +124,16 @@ def preprocess_vctk():
             writer.write(sequence.SerializeToString())
         writer.close()
 
+
+    if mini:
+        # save vocabulary and meta data
+        with open(DATA_DIR + 'mini_meta.pkl', 'wb') as vf:
+            pkl.dump({'vocab': ivocab, 'r': r}, vf)
+    else:
         # save vocabulary
-        with open(DATA_DIR + 'vocab.pkl', 'wb') as vf:
-            pkl.dump(ivocab, vf)
+        with open(DATA_DIR + 'meta.pkl', 'wb') as vf:
+            pkl.dump({'vocab': ivocab, 'r': r}, vf)
+
         
 
 if __name__ == '__main__':

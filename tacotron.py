@@ -10,14 +10,15 @@ import ops
 import sys
 
 class Config(object):
-    max_decode_iter = 400
+    max_decode_iter = 1000
     attention_units = 256
     decoder_units = 256
     mel_features = 80
     embed_dim = 256
 
-    r = 1
-    dropout = 0.5
+    r = 5
+    dropout = 0
+    cap_grads = 10
 
     lr = 0.001
     batch_size = 32
@@ -33,7 +34,11 @@ class Tacotron(object):
 
     def create_decoder(self, encoded, inputs, train=True):
         config = self.config
-        attention_mech = wrapper.BahdanauAttention(config.attention_units, encoded, memory_sequence_length=inputs['text_length'])
+        attention_mech = wrapper.BahdanauAttention(
+                config.attention_units,
+                encoded,
+                memory_sequence_length=inputs['text_length']
+        )
         decoder_cell = OutputProjectionWrapper(
                 InputProjectionWrapper(
                     ResidualWrapper(
@@ -80,24 +85,38 @@ class Tacotron(object):
         with tf.variable_scope('decoder'):
             dec = self.create_decoder(encoded, inputs, train)
             (seq2seq_output, _),  _ = decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
+            tf.summary.histogram('seq2seq_output', seq2seq_output)
 
         with tf.variable_scope('post-process'):
             # TODO rearrange frames so everything makes sense for r > 1
-            #decoded = tf.reshape(decoded, [64, -1, 80])
-            output = ops.CBHG(seq2seq_output, inputs['speech_length'], K=8, c=[128,256,80])
-            output = tf.layers.dense(output, units=1025)
+
+            #output = ops.CBHG(seq2seq_output, inputs['speech_length'], K=8, c=[128,256,80])
+            output = tf.layers.dense(seq2seq_output, units=1025*config.r)
+
+            tf.summary.histogram('output', output)
 
         return seq2seq_output, output
 
     def add_loss_op(self, seq2seq_output, output, mel, linear):
         seq2seq_loss = tf.reduce_sum(tf.abs(seq2seq_output - mel))
         output_loss = tf.reduce_sum(tf.abs(output - linear))
-        loss = seq2seq_loss + output_loss
+        loss = seq2seq_loss# + output_loss
+        tf.summary.scalar('seq2seq loss', seq2seq_loss)
+        tf.summary.scalar('output loss', output_loss)
         tf.summary.scalar('loss', loss)
         return loss
 
     def add_train_op(self, loss):
-        return tf.train.AdamOptimizer(learning_rate=self.config.lr).minimize(loss)
+        opt = tf.train.AdamOptimizer(learning_rate=self.config.lr)
+        gvs = opt.compute_gradients(loss)
+
+        # optionally cap and noise gradients to regularize
+        if self.config.cap_grads:
+            gvs = [(tf.clip_by_norm(grad, self.config.cap_grads), var) for grad, var in gvs if grad is not None]
+
+        self.global_step = tf.Variable(0, name='global_step', trainable=False)
+        train_op = opt.apply_gradients(gvs, global_step=self.global_step)
+        return train_op
 
     def __init__(self, config, inputs, train=True):
         self.config = config
