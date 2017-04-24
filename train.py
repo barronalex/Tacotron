@@ -23,7 +23,7 @@ def train(config, num_steps=100000):
     ivocab = meta['vocab']
     config.vocab_size = len(ivocab)
 
-    filename_queue = tf.train.string_input_producer(['data/VCTK-Corpus/train.proto'], num_epochs=None)
+    filename_queue = tf.train.string_input_producer(['data/cmu_us_slt_arctic/train.proto'], num_epochs=None)
     batch_inputs = data_input.batch_inputs(filename_queue, r=config.r)
 
     # initialize model

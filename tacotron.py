@@ -17,7 +17,7 @@ class Config(object):
     embed_dim = 256
 
     r = 5
-    dropout = 0
+    dropout = 0.5
     cap_grads = 10
 
     lr = 0.001

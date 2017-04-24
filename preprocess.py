@@ -38,7 +38,6 @@ def reshape_frames(signal):
     new_signal = np.concatenate([np.concatenate(np.split(s, r, axis=1), axis=0) for s in splits[:-1]], axis=1)
     return new_signal.T
 
-
 def make_sequence_example(stft, mel, text, speaker):
     assert stft.shape[0] == 1025
 
@@ -75,6 +74,46 @@ def make_sequence_example(stft, mel, text, speaker):
 
     return sequence
 
+def process_wav(fname, sr=24000):
+    wave, sr = librosa.load(fname, mono=True, sr=24000)
+
+    stft = librosa.stft(wave, n_fft=2048, win_length=1200, hop_length=300)
+    stft = librosa.logamplitude(stft)
+
+    mel = librosa.feature.melspectrogram(S=stft, n_mels=80)
+    mel = librosa.logamplitude(mel)
+    assert stft.shape[1] == mel.shape[1]
+    return mel, stft
+
+def preprocess_arctic():
+    proto_file = DATA_DIR + 'cmu_us_slt_arctic/train.proto'
+
+    with open(proto_file, 'w') as pf:
+        writer = tf.python_io.TFRecordWriter(pf.name)
+
+        txt_file = DATA_DIR + 'cmu_us_slt_arctic/etc/arctic.data'
+        with open(txt_file, 'r') as tff:
+            for line in tqdm(tff, total=1100):
+                spl = line.split()
+                id = spl[1]
+                text = ' '.join(spl[2:-1])
+                text = text[1:-1]
+                text = [process_char(c) for c in list(text)]
+
+                wav_file = DATA_DIR + 'cmu_us_slt_arctic/wav/{}.wav'.format(id)
+
+                mel, stft = process_wav(wav_file, sr=16000)
+                sequence = make_sequence_example(stft, mel, text, 0)
+                writer.write(sequence.SerializeToString())
+
+        writer.close()
+
+        # save vocabulary
+        with open(DATA_DIR + 'meta.pkl', 'wb') as vf:
+            pkl.dump({'vocab': ivocab, 'r': r}, vf)
+
+
+
 
 def preprocess_vctk():
     # adapted from https://github.com/buriburisuri/speech-to-text-wavenet/blob/master/preprocess.py
@@ -99,17 +138,10 @@ def preprocess_vctk():
         for i, f in tqdm(enumerate(file_ids), total=len(file_ids)):
 
             # wave file name
-            wave_file = DATA_DIR + 'VCTK-Corpus/wav48/%s/' % f[:4] + f + '.wav'
+            wav_file = DATA_DIR + 'VCTK-Corpus/wav48/%s/' % f[:4] + f + '.wav'
             txt_file = DATA_DIR + 'VCTK-Corpus/txt/%s/' % f[:4] + f + '.txt'
 
-            wave, sr = librosa.load(wave_file, mono=True, sr=24000)
-
-            stft = librosa.stft(wave, n_fft=2048, win_length=1200, hop_length=300)
-            stft = np.log(np.abs(stft))
-
-            mel = librosa.feature.melspectrogram(S=stft, n_mels=80)
-            mel = np.log(np.abs(mel))
-            assert stft.shape[1] == mel.shape[1]
+            mel, stft = process_wav(wav_file)
 
             with open(txt_file, 'r') as tff:
                 text = tff.read().strip()
@@ -137,7 +169,9 @@ def preprocess_vctk():
         
 
 if __name__ == '__main__':
-    preprocess_vctk()
+    preprocess_arctic()
+    #preprocess_vctk()
+
 
 
 
