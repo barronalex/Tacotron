@@ -9,6 +9,7 @@ from tqdm import tqdm
 import argparse
 
 from tacotron import Tacotron, Config
+import audio
 
 SAVE_EVERY = 500
 restore = False
@@ -62,12 +63,14 @@ def train(config, num_steps=100000):
                 saver.save(sess, 'weights/' + config.save_path, global_step=global_step)
                 print('saving sample')
                 # store a sample to listen to
-                #sample = output[17]
-                #inverted = librosa.istft(sample, win_length=1200, hop_length=300)
-                #librosa.output.write_wav('samples/sample_at_{}.wav'.format(step), inverted, 24000)
-                #with open('samples/text_at_{}.txt'.format(step), 'w') as sf:
-                    #text = [ivocab[w] for w in inputs['text'][17]]
-                    #sf.write(str(text))
+                assert output[17].shape == inputs['stft'][17].shape
+                audio.invert_spectrogram(output[17],
+                        out_fn='samples/sample_at_{}.wav'.format(global_step))
+                audio.invert_spectrogram(inputs['stft'][17],
+                        out_fn='samples/ideal_at_{}.wav'.format(global_step))
+                #text = [ivocab[t] for t in inputs['text'][17] if t != 0]
+                #with open('samples/text_at_{}.txt'.format(global_step), 'w') as ttf:
+                    #ttf.write(''.join(text))
 
         coord.request_stop()
         coord.join(threads)

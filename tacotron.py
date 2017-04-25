@@ -90,8 +90,11 @@ class Tacotron(object):
         with tf.variable_scope('post-process'):
             # TODO rearrange frames so everything makes sense for r > 1
 
-            #output = ops.CBHG(seq2seq_output, inputs['speech_length'], K=8, c=[128,256,80])
-            output = tf.layers.dense(seq2seq_output, units=1025*config.r)
+            post_input = tf.reshape(seq2seq_output, (tf.shape(seq2seq_output)[0], -1, config.mel_features))
+            print(seq2seq_output.shape)
+            output = ops.CBHG(post_input, inputs['speech_length'], K=8, c=[128,256,80])
+            output = tf.layers.dense(output, units=1025)
+            output = tf.reshape(output, (tf.shape(output)[0], -1, 1025*config.r))
 
             tf.summary.histogram('output', output)
 
@@ -100,7 +103,7 @@ class Tacotron(object):
     def add_loss_op(self, seq2seq_output, output, mel, linear):
         seq2seq_loss = tf.reduce_sum(tf.abs(seq2seq_output - mel))
         output_loss = tf.reduce_sum(tf.abs(output - linear))
-        loss = seq2seq_loss# + output_loss
+        loss = seq2seq_loss + output_loss
         tf.summary.scalar('seq2seq loss', seq2seq_loss)
         tf.summary.scalar('output loss', output_loss)
         tf.summary.scalar('loss', loss)
