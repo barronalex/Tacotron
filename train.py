@@ -13,11 +13,11 @@ import audio
 
 SAVE_EVERY = 500
 restore = False
-RESTORE_STEP = 99500
+RESTORE_STEP = 39500
 
 def train(config, num_steps=100000):
 
-    config.save_path = ''
+    config.save_path = 'combined'
 
     meta = data_input.load_meta()
     assert config.r == meta['r']
@@ -32,7 +32,7 @@ def train(config, num_steps=100000):
 
     with tf.Session() as sess:
 
-        train_writer = tf.summary.FileWriter('log/' + config.save_path + 'train', sess.graph)
+        train_writer = tf.summary.FileWriter('log/' + config.save_path + '/train', sess.graph)
 
         tf.global_variables_initializer().run()
         coord = tf.train.Coordinator()
@@ -68,9 +68,6 @@ def train(config, num_steps=100000):
                         out_fn='samples/sample_at_{}.wav'.format(global_step))
                 audio.invert_spectrogram(inputs['stft'][17],
                         out_fn='samples/ideal_at_{}.wav'.format(global_step))
-                #text = [ivocab[t] for t in inputs['text'][17] if t != 0]
-                #with open('samples/text_at_{}.txt'.format(global_step), 'w') as ttf:
-                    #ttf.write(''.join(text))
 
         coord.request_stop()
         coord.join(threads)

@@ -17,7 +17,7 @@ class Config(object):
     embed_dim = 256
 
     r = 5
-    dropout = 0.5
+    dropout_prob = 0.2
     cap_grads = 10
 
     lr = 0.001
@@ -27,9 +27,9 @@ class Tacotron(object):
     # transformation applied to input character sequence and decoded frame sequence
     def pre_net(self, inputs, units=[256,128], train=True):
         layer_1 = tf.layers.dense(inputs, units[0], activation=tf.nn.relu)
-        layer_1 = tf.layers.dropout(layer_1, rate=self.config.dropout, training=train)
+        layer_1 = tf.layers.dropout(layer_1, rate=self.config.dropout_prob, training=train)
         layer_2 = tf.layers.dense(layer_1, units[1], activation=tf.nn.relu)
-        layer_2 = tf.layers.dropout(layer_2, rate=self.config.dropout, training=train)
+        layer_2 = tf.layers.dropout(layer_2, rate=self.config.dropout_prob, training=train)
         return layer_2
 
     def create_decoder(self, encoded, inputs, train=True):
@@ -103,7 +103,10 @@ class Tacotron(object):
     def add_loss_op(self, seq2seq_output, output, mel, linear):
         seq2seq_loss = tf.reduce_sum(tf.abs(seq2seq_output - mel))
         output_loss = tf.reduce_sum(tf.abs(output - linear))
-        loss = seq2seq_loss + output_loss
+        if self.config.save_path == 'seq2seq_only':
+            loss = seq2seq_loss
+        else:
+            loss = seq2seq_loss + output_loss
         tf.summary.scalar('seq2seq loss', seq2seq_loss)
         tf.summary.scalar('output loss', output_loss)
         tf.summary.scalar('loss', loss)
@@ -115,7 +118,9 @@ class Tacotron(object):
 
         # optionally cap and noise gradients to regularize
         if self.config.cap_grads:
-            gvs = [(tf.clip_by_norm(grad, self.config.cap_grads), var) for grad, var in gvs if grad is not None]
+            with tf.variable_scope('cap_grads'):
+                gvs = [(tf.clip_by_norm(grad, self.config.cap_grads), var) \
+                        for grad, var in gvs if grad is not None]
 
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         train_op = opt.apply_gradients(gvs, global_step=self.global_step)
