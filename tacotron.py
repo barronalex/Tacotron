@@ -129,7 +129,7 @@ class Tacotron(object):
 
     def __init__(self, config, inputs, train=True):
         self.config = config
-        self.seq2seq_output, self.output = self.inference(inputs)
+        self.seq2seq_output, self.output = self.inference(inputs, train)
         if train:
             self.loss = self.add_loss_op(self.seq2seq_output, self.output, inputs['mel'], inputs['stft'])
             self.train_op = self.add_train_op(self.loss)

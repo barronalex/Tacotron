@@ -40,7 +40,7 @@ def train(model, config, num_steps=100000):
 
         if restore:
             print('restoring weights')
-            saver.restore(sess, 'weights/-' + str(RESTORE_STEP))
+            saver.restore(sess, 'weights/' + config.save_path + '-' + str(RESTORE_STEP))
 
         for _ in tqdm(range(num_steps)):
             out = sess.run([

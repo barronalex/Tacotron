@@ -118,7 +118,7 @@ class Vanilla_Seq2Seq(object):
 
     def __init__(self, config, inputs, train=True):
         self.config = config
-        self.output = self.inference(inputs)
+        self.output = self.inference(inputs, train)
         if train:
             self.loss = self.add_loss_op(self.output, inputs['stft'])
             self.train_op = self.add_train_op(self.loss)
