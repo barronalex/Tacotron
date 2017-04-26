@@ -15,6 +15,7 @@ class Config(object):
     decoder_units = 256
     mel_features = 80
     embed_dim = 256
+    fft_size = 1025
 
     r = 5
     dropout_prob = 0.2
@@ -24,14 +25,7 @@ class Config(object):
     batch_size = 32
 
 
-class Tacotron(object):
-    # transformation applied to input character sequence and decoded frame sequence
-    def pre_net(self, inputs, units=[256,128], train=True):
-        layer_1 = tf.layers.dense(inputs, units[0], activation=tf.nn.relu)
-        layer_1 = tf.layers.dropout(layer_1, rate=self.config.dropout_prob, training=train)
-        layer_2 = tf.layers.dense(layer_1, units[1], activation=tf.nn.relu)
-        layer_2 = tf.layers.dropout(layer_2, rate=self.config.dropout_prob, training=train)
-        return layer_2
+class Vanilla_Seq2Seq(object):
 
     def create_decoder(self, encoded, inputs, train=True):
         config = self.config
@@ -43,23 +37,21 @@ class Tacotron(object):
         decoder_cell = OutputProjectionWrapper(
                 InputProjectionWrapper(
                     ResidualWrapper(
-                        MultiRNNCell([GRUCell(config.decoder_units) for _ in range(3)])
+                        MultiRNNCell([GRUCell(config.decoder_units) for _ in range(2)])
                 ), config.decoder_units)
-        , config.mel_features * config.r)
-
-        decoder_frame_input = \
-            lambda inputs, attention: tf.concat([self.pre_net(inputs), attention], -1)
+        , 1025 * config.r)
 
         cell = wrapper.DynamicAttentionWrapper(
+
                 decoder_cell,
                 attention_mech,
                 attention_size=config.attention_units,
-                cell_input_fn=decoder_frame_input,
                 output_attention=False
         )
 
+        # weirdly this worked well with mel features as targets...
         if train:
-            decoder_helper = helper.TrainingHelper(inputs['mel'], inputs['speech_length'])
+            decoder_helper = helper.ScheduledOutputTrainingHelper(inputs['stft'], inputs['speech_length'], 0.5)
         else:
             decoder_helper = ops.InferenceHelper(config.batch_size)
 
@@ -80,36 +72,28 @@ class Tacotron(object):
             print(embedded_inputs.shape)
 
         with tf.variable_scope('encoder'):
-            pre_out = self.pre_net(embedded_inputs)
-            encoded = ops.CBHG(pre_out, inputs['text_length'], K=16, c=[128,128,128], gru_units=128)
+            gru_cell = ResidualWrapper(
+                    MultiRNNCell([GRUCell(256) for _ in range(2)])
+            )
+            encoded, _ = tf.nn.dynamic_rnn(
+                    gru_cell, 
+                    embedded_inputs, 
+                    sequence_length=inputs['text_length'],
+                    dtype=tf.float32
+            )
+            print(encoded.shape)
 
         with tf.variable_scope('decoder'):
             dec = self.create_decoder(encoded, inputs, train)
-            (seq2seq_output, _),  _ = decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
-            tf.summary.histogram('seq2seq_output', seq2seq_output)
-
-        with tf.variable_scope('post-process'):
-            # TODO rearrange frames so everything makes sense for r > 1
-
-            post_input = tf.reshape(seq2seq_output, (tf.shape(seq2seq_output)[0], -1, config.mel_features))
-            print(seq2seq_output.shape)
-            output = ops.CBHG(post_input, inputs['speech_length'], K=8, c=[128,256,80])
-            output = tf.layers.dense(output, units=1025)
-            output = tf.reshape(output, (tf.shape(output)[0], -1, 1025*config.r))
+            (output, _),  _ = decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
+            print(output.shape)
 
             tf.summary.histogram('output', output)
 
-        return seq2seq_output, output
+        return output
 
-    def add_loss_op(self, seq2seq_output, output, mel, linear):
-        seq2seq_loss = tf.reduce_sum(tf.abs(seq2seq_output - mel))
-        output_loss = tf.reduce_sum(tf.abs(output - linear))
-        if self.config.save_path == 'seq2seq_only':
-            loss = seq2seq_loss
-        else:
-            loss = seq2seq_loss + output_loss
-        tf.summary.scalar('seq2seq loss', seq2seq_loss)
-        tf.summary.scalar('output loss', output_loss)
+    def add_loss_op(self, output, linear):
+        loss = tf.reduce_sum(tf.abs(output - linear))
         tf.summary.scalar('loss', loss)
         return loss
 
@@ -129,9 +113,9 @@ class Tacotron(object):
 
     def __init__(self, config, inputs, train=True):
         self.config = config
-        self.seq2seq_output, self.output = self.inference(inputs)
+        self.output = self.inference(inputs)
         if train:
-            self.loss = self.add_loss_op(self.seq2seq_output, self.output, inputs['mel'], inputs['stft'])
+            self.loss = self.add_loss_op(self.output, inputs['stft'])
             self.train_op = self.add_train_op(self.loss)
         self.merged = tf.summary.merge_all()
 

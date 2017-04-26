@@ -8,16 +8,14 @@ import librosa
 from tqdm import tqdm
 import argparse
 
-from tacotron import Tacotron, Config
+
 import audio
 
 SAVE_EVERY = 500
 restore = False
 RESTORE_STEP = 39500
 
-def train(config, num_steps=100000):
-
-    config.save_path = 'combined'
+def train(model, config, num_steps=100000):
 
     meta = data_input.load_meta()
     assert config.r == meta['r']
@@ -28,7 +26,7 @@ def train(config, num_steps=100000):
     batch_inputs = data_input.batch_inputs(filename_queue, r=config.r)
 
     # initialize model
-    model = Tacotron(config, batch_inputs, train=True)
+    model = model(config, batch_inputs, train=True)
 
     with tf.Session() as sess:
 
@@ -74,7 +72,21 @@ def train(config, num_steps=100000):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+
+    parser.add_argument('-m', '--model', default='tacotron')
     args = parser.parse_args()
 
-    config = Config()
-    train(config)
+    if args.model == 'tacotron':
+        from tacotron import Tacotron, Config
+        model = Tacotron
+        config = Config()
+        config.save_path = 'tacotron'
+        print('Buliding Tacotron')
+    else:
+        from vanilla_seq2seq import Vanilla_Seq2Seq, Config
+        model = Vanilla_Seq2Seq
+        config = Config()
+        config.save_path = 'vanilla_seq2seq/scheduled_sample'
+        print('Buliding Vanilla_Seq2Seq')
+
+    train(model, config)
