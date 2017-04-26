@@ -11,7 +11,7 @@ import argparse
 
 import audio
 
-SAVE_EVERY = 500
+SAVE_EVERY = 1000
 restore = False
 RESTORE_STEP = 39500
 
@@ -61,11 +61,13 @@ def train(model, config, num_steps=100000):
                 saver.save(sess, 'weights/' + config.save_path, global_step=global_step)
                 print('saving sample')
                 # store a sample to listen to
-                assert output[17].shape == inputs['stft'][17].shape
-                audio.invert_spectrogram(output[17],
-                        out_fn='samples/sample_at_{}.wav'.format(global_step))
-                audio.invert_spectrogram(inputs['stft'][17],
-                        out_fn='samples/ideal_at_{}.wav'.format(global_step))
+                sample = audio.invert_spectrogram(output[17])
+                ideal = audio.invert_spectrogram(inputs['stft'][17])
+                merged = sess.run(tf.summary.merge(
+                    [tf.summary.audio('ideal{}'.format(global_step), ideal[None, :], 16000),
+                     tf.summary.audio('sample{}'.format(global_step), sample[None, :], 16000)]
+                ))
+                train_writer.add_summary(merged, global_step)
 
         coord.request_stop()
         coord.join(threads)

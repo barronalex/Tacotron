@@ -20,6 +20,7 @@ class Config(object):
     r = 5
     dropout_prob = 0.2
     cap_grads = 10
+    sampling_prob = 0.5
 
     lr = 0.001
     batch_size = 32
@@ -39,7 +40,7 @@ class Vanilla_Seq2Seq(object):
                     ResidualWrapper(
                         MultiRNNCell([GRUCell(config.decoder_units) for _ in range(2)])
                 ), config.decoder_units)
-        , 1025 * config.r)
+        , config.fft_size * config.r)
 
         cell = wrapper.DynamicAttentionWrapper(
 
@@ -51,7 +52,11 @@ class Vanilla_Seq2Seq(object):
 
         # weirdly this worked well with mel features as targets...
         if train:
-            decoder_helper = helper.ScheduledOutputTrainingHelper(inputs['stft'], inputs['speech_length'], 0.5)
+            decoder_helper = helper.ScheduledOutputTrainingHelper(
+                    inputs['stft'],
+                    inputs['speech_length'],
+                    config.sampling_prob
+            )
         else:
             decoder_helper = ops.InferenceHelper(config.batch_size)
 
