@@ -16,6 +16,8 @@ class Config(object):
     mel_features = 80
     embed_dim = 256
 
+    fft_size = 1025
+
     r = 5
     dropout_prob = 0.2
     cap_grads = 10
@@ -47,8 +49,12 @@ class Tacotron(object):
                 ), config.decoder_units)
         , config.mel_features * config.r)
 
+        # feed in rth frame at each time step
         decoder_frame_input = \
-            lambda inputs, attention: tf.concat([self.pre_net(inputs), attention], -1)
+            lambda inputs, attention: tf.concat(
+                    [tf.slice(self.pre_net(inputs), [0, (config.r - 1)*config.fft_size], [-1, -1]),
+                    attention]
+                , -1)
 
         cell = wrapper.DynamicAttentionWrapper(
                 decoder_cell,
@@ -61,7 +67,7 @@ class Tacotron(object):
         if train:
             decoder_helper = helper.TrainingHelper(inputs['mel'], inputs['speech_length'])
         else:
-            decoder_helper = ops.InferenceHelper(config.batch_size)
+            decoder_helper = ops.InferenceHelper(config.batch_size, config.fft_size)
 
         dec = basic_decoder.BasicDecoder(
                 cell,

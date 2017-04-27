@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import pickle as pkl
+import os
 
 def read_sequence_example(filename_queue, r=1):
     reader = tf.TFRecordReader()
@@ -65,9 +66,6 @@ def load_prompts(prompt_file, ivocab):
         print(batches)
         return batches
         
-
-
-
 def load_meta():
     with open('data/meta.pkl', 'rb') as vf:
         meta = pkl.load(vf)

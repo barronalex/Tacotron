@@ -10,8 +10,6 @@ import argparse
 
 import audio
 
-RESTORE_STEP = 500
-
 def test(model, config, prompt_file, num_steps=100000):
 
     meta = data_input.load_meta()
@@ -29,30 +27,33 @@ def test(model, config, prompt_file, num_steps=100000):
         train_writer = tf.summary.FileWriter('log/' + config.save_path + '/test', sess.graph)
 
         tf.global_variables_initializer().run()
+        tf.local_variables_initializer().run()
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
         saver = tf.train.Saver()
 
         print('restoring weights')
-        saver.restore(sess, 'weights/' + config.save_path + '-' + str(RESTORE_STEP))
+        latest_ckpt = tf.train.latest_checkpoint(
+            'weights/' + config.save_path[:config.save.rfind('/')]
+        )
+        saver.restore(sess, latest_ckpt)
 
         try:
             while(True):
                 out = sess.run([
-                    model.global_step,
                     model.output,
-                    model.merged,
                     batch_inputs
                 ])
-                _, global_step, output, summary, inputs = out
+                outputs, inputs = out
 
                 print('saving samples')
-                for out, text in zip(outputs, inputs['text']):
+                for out, words in zip(outputs, inputs['text']):
                     # store a sample to listen to
+                    text = ''.join([ivocab[w] for w in words])
                     sample = audio.invert_spectrogram(out)
                     merged = sess.run(tf.summary.merge(
-                         tf.summary.audio(text, sample[None, :], 16000)
+                         [tf.summary.audio(text, sample[None, :], 16000)]
                     ))
                     train_writer.add_summary(merged, 0)
         except tf.errors.OutOfRangeError:

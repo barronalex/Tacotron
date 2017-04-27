@@ -11,9 +11,8 @@ import argparse
 
 import audio
 
-SAVE_EVERY = 1000
-restore = False
-RESTORE_STEP = 39500
+SAVE_EVERY = 500
+restore = True
 
 def train(model, config, num_steps=100000):
 
@@ -40,7 +39,10 @@ def train(model, config, num_steps=100000):
 
         if restore:
             print('restoring weights')
-            saver.restore(sess, 'weights/' + config.save_path + '-' + str(RESTORE_STEP))
+            latest_ckpt = tf.train.latest_checkpoint(
+                'weights/' + config.save_path[:config.save.rfind('/')]
+            )
+            saver.restore(sess, latest_ckpt)
 
         for _ in tqdm(range(num_steps)):
             out = sess.run([
@@ -74,7 +76,6 @@ def train(model, config, num_steps=100000):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-
     parser.add_argument('-m', '--model', default='tacotron')
     args = parser.parse_args()
 

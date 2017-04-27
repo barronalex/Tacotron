@@ -10,7 +10,7 @@ import ops
 import sys
 
 class Config(object):
-    max_decode_iter = 1000
+    max_decode_iter = 70
     attention_units = 256
     decoder_units = 256
     mel_features = 80
@@ -18,11 +18,10 @@ class Config(object):
     fft_size = 1025
 
     r = 5
-    dropout_prob = 0.2
     cap_grads = 10
     sampling_prob = 0.5
 
-    lr = 0.001
+    lr = 0.0003
     batch_size = 32
 
 
@@ -42,13 +41,19 @@ class Vanilla_Seq2Seq(object):
                 ), config.decoder_units)
         , config.fft_size * config.r)
 
-        cell = wrapper.DynamicAttentionWrapper(
+        # feed in rth frame at each time step
+        decoder_frame_input = \
+            lambda inputs, attention: tf.concat(
+                    [tf.slice(inputs, [0, (config.r - 1)*config.fft_size], [-1, -1]), attention]
+                , -1)
 
+        cell = wrapper.DynamicAttentionWrapper(
                 decoder_cell,
                 attention_mech,
                 attention_size=config.attention_units,
+                cell_input_fn=decoder_frame_input,
                 output_attention=False
-        )
+            )
 
         # weirdly this worked well with mel features as targets...
         if train:
@@ -58,12 +63,15 @@ class Vanilla_Seq2Seq(object):
                     config.sampling_prob
             )
         else:
-            decoder_helper = ops.InferenceHelper(config.batch_size)
+            decoder_helper = ops.InferenceHelper(
+                    tf.shape(inputs['text'])[0],
+                    config.fft_size * config.r
+            )
 
         dec = basic_decoder.BasicDecoder(
                 cell,
                 decoder_helper,
-                cell.zero_state(dtype=tf.float32, batch_size=config.batch_size)
+                cell.zero_state(dtype=tf.float32, batch_size=tf.shape(inputs['text'])[0])
         )
 
         return dec
