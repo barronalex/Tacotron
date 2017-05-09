@@ -9,6 +9,7 @@ import pandas as pd
 import pickle as pkl
 from tqdm import tqdm
 import sys
+import string
 
 import audio
 
@@ -40,8 +41,6 @@ def make_sequence_example(stft, mel, text, speaker):
     mel_feature = sequence.feature_lists.feature_list["mel"]
     stft_feature = sequence.feature_lists.feature_list["stft"]
 
-    text_feature = sequence.feature_lists.feature_list["text"]
-
     for s in stft:
         stft_feature.feature.add().float_list.value.append(s)
 
@@ -53,6 +52,67 @@ def make_sequence_example(stft, mel, text, speaker):
 
     return sequence
 
+def pad_to_dense(inputs):
+    max_len = max(r.shape[0] for r in inputs)
+    if len(inputs[0].shape) == 1:
+        padded = [np.pad(inp, (0, max_len - inp.shape[0]), 'constant', constant_values=0) \
+                        for i, inp in enumerate(inputs)]
+    else:
+        padded = [np.pad(inp, ((0, max_len - inp.shape[0]),(0,0)), 'constant', constant_values=0) \
+                        for i, inp in enumerate(inputs)]
+    print(padded[0].shape)
+    padded = np.stack(padded)
+    print(padded.shape)
+    return padded
+
+def preprocess_blizzard():
+
+    num_examples = 9733
+    blizz_dir = DATA_DIR + 'blizzard/train/segmented/' 
+    txt_file = blizz_dir + 'prompts.gui'
+
+    # pad out all these jagged arrays and store them in an h5py file
+    texts = []
+    text_lens = []
+    mels = []
+    stfts = []
+    speech_lens = []
+
+    with open(txt_file, 'r') as ttf:
+        for step in tqdm(range(num_examples)):
+            id = ttf.readline().strip()
+            text = ttf.readline()
+            if not text: break
+            # ugly but readable and the performance is fine
+            text = text.replace('@ ', '').replace('| ', '').replace('# ', '') 
+            text = text.replace(' ,', ',').replace(' ;', ';').replace(' :', ':')
+            text = text.replace(' .', '.').strip()
+            text = [process_char(c) for c in list(text)]
+
+            # now load wav file
+            wav_file = blizz_dir + 'wavn/' + id + '.wav'
+            mel, stft = audio.process_wav(wav_file, sr=16000)
+            if mel.shape[0] < 70:
+                texts.append(np.array(text))
+                text_lens.append(len(text))
+                mels.append(mel)
+                stfts.append(stft)
+                speech_lens.append(mel.shape[0])
+
+            # skip over weird phoneme deconstruction
+            if not ttf.readline(): break
+
+    texts, mels, stfts = pad_to_dense(texts), pad_to_dense(mels), pad_to_dense(stfts)
+
+    inputs = texts, text_lens, mels, stfts, speech_lens
+    names = 'texts', 'text_lens', 'mels', 'stfts', 'speech_lens'
+    names = ['data/blizzard/' + name for name in names]
+
+    for name, inp in zip(names, inputs):
+        np.save(name, inp, allow_pickle=False)
+
+
+        
 
 def preprocess_arctic():
     proto_file = DATA_DIR + 'cmu_us_slt_arctic/train.proto'
@@ -133,7 +193,8 @@ def preprocess_vctk():
             pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
 
 if __name__ == '__main__':
-    preprocess_arctic()
+    #preprocess_arctic()
+    preprocess_blizzard()
     #preprocess_vctk()
 
 

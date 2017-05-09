@@ -21,7 +21,7 @@ class Config(object):
     cap_grads = 10
     sampling_prob = 0.5
 
-    lr = 0.0003
+    lr = 0.001
     batch_size = 32
 
 

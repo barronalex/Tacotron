@@ -2,6 +2,73 @@ import tensorflow as tf
 import numpy as np
 import pickle as pkl
 import os
+import threading
+import sys
+
+QUEUE_CAPACITY = 50
+QUEUE_INPUT_SIZE = 20
+
+# adapted from http://126kr.com/article/5cikb02omea
+def build_queue(sess, inputs):
+    queue_inputs = []
+    for inp in inputs:
+        shape = [QUEUE_INPUT_SIZE] + list(inp.shape[1:])
+        queue_inputs.append(tf.placeholder(inp.dtype, shape))
+
+    queue = tf.FIFOQueue(capacity=QUEUE_CAPACITY,
+            dtypes=[inp.dtype for inp in inputs],
+            shapes=[inp.shape[1:] for inp in inputs])
+    enqueue_op = queue.enqueue_many(queue_inputs)
+    dequeue_op = queue.dequeue()
+
+    def enqueue(sess):
+        under = 0
+        max_len = len(inputs[0])
+        print("starting to write into queue")
+        while True:
+            upper = under + QUEUE_INPUT_SIZE
+            cur_inputs = []
+            if upper <= max_len:
+                for inp in inputs:
+                    cur_inputs.append(inp[under:upper])
+                under = upper
+            else:
+                rest = upper - max_len
+                for inp in inputs:
+                    cur_inputs.append(np.concatenate((inp[under:max_len], inp[0:rest])))
+                under = rest
+     
+            sess.run(enqueue_op, feed_dict=dict(zip(queue_inputs, cur_inputs)))
+        print("finished enqueueing")
+
+    batch_inputs = tf.train.shuffle_batch(dequeue_op, batch_size=32,
+            capacity=40, min_after_dequeue=5)
+    names = ['text', 'text_length', 'stft', 'mel', 'speech_length']
+    batch_inputs = {name: inp for name, inp in zip(names, batch_inputs)}
+
+    enqueue_thread = threading.Thread(target=enqueue, args=[sess])
+    enqueue_thread.isDaemon()
+    enqueue_thread.start()
+
+    return queue, batch_inputs
+
+def load_from_npy(dirname):
+    text = np.load(dirname + 'texts.npy')
+    text_length = np.load(dirname + 'text_lens.npy')
+    stft = np.load(dirname + 'stfts.npy')
+    mel = np.load(dirname + 'mels.npy')
+    speech_length = np.load(dirname + 'speech_lens.npy')
+
+    text = np.array(text, dtype=np.int32)
+    text_length = np.array(text_length, dtype=np.int32)
+    speech_length = np.array(speech_length, dtype=np.int32)
+    mel = np.array(mel, dtype=np.float32)
+
+    # TODO: fix this shit?
+    speech_length = np.ones(text.shape[0], dtype=np.int32)*68
+
+    inputs = list((text, text_length, stft, mel, speech_length))
+    return inputs
 
 def read_sequence_example(filename_queue, r=1):
     reader = tf.TFRecordReader()

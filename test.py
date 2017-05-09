@@ -35,7 +35,7 @@ def test(model, config, prompt_file, num_steps=100000):
 
         print('restoring weights')
         latest_ckpt = tf.train.latest_checkpoint(
-            'weights/' + config.save_path[:config.save.rfind('/')]
+            'weights/' + config.save_path[:config.save_path.rfind('/')]
         )
         saver.restore(sess, latest_ckpt)
 

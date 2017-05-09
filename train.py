@@ -8,11 +8,10 @@ import librosa
 from tqdm import tqdm
 import argparse
 
-
 import audio
 
 SAVE_EVERY = 500
-restore = True
+restore = False
 
 def train(model, config, num_steps=100000):
 
@@ -21,13 +20,14 @@ def train(model, config, num_steps=100000):
     ivocab = meta['vocab']
     config.vocab_size = len(ivocab)
 
-    filename_queue = tf.train.string_input_producer(['data/cmu_us_slt_arctic/train.proto'], num_epochs=None)
-    batch_inputs = data_input.batch_inputs(filename_queue, r=config.r)
-
-    # initialize model
-    model = model(config, batch_inputs, train=True)
 
     with tf.Session() as sess:
+
+        inputs = data_input.load_from_npy('data/blizzard/')
+        queue, batch_inputs = data_input.build_queue(sess, inputs)
+
+        # initialize model
+        model = model(config, batch_inputs, train=True)
 
         train_writer = tf.summary.FileWriter('log/' + config.save_path + '/train', sess.graph)
 
@@ -40,7 +40,7 @@ def train(model, config, num_steps=100000):
         if restore:
             print('restoring weights')
             latest_ckpt = tf.train.latest_checkpoint(
-                'weights/' + config.save_path[:config.save.rfind('/')]
+                'weights/' + config.save_path[:config.save_path.rfind('/')]
             )
             saver.restore(sess, latest_ckpt)
 
@@ -71,6 +71,7 @@ def train(model, config, num_steps=100000):
                 ))
                 train_writer.add_summary(merged, global_step)
 
+        sess.run(queue.close(cancel_pending_enqueues=True))
         coord.request_stop()
         coord.join(threads)
 
@@ -89,7 +90,7 @@ if __name__ == '__main__':
         from vanilla_seq2seq import Vanilla_Seq2Seq, Config
         model = Vanilla_Seq2Seq
         config = Config()
-        config.save_path = 'vanilla_seq2seq/scheduled_sample'
+        config.save_path = 'blizzard/vanilla_seq2seq'
         print('Buliding Vanilla_Seq2Seq')
 
     train(model, config)
