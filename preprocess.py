@@ -12,6 +12,7 @@ import sys
 import string
 
 import audio
+import argparse
 
 
 mini = False
@@ -26,7 +27,6 @@ def process_char(char):
         vocab[char] = next_index
         ivocab[next_index] = char
     return vocab[char]
-
 
 def make_sequence_example(stft, mel, text, speaker):
     sequence = tf.train.SequenceExample()
@@ -60,10 +60,18 @@ def pad_to_dense(inputs):
     else:
         padded = [np.pad(inp, ((0, max_len - inp.shape[0]),(0,0)), 'constant', constant_values=0) \
                         for i, inp in enumerate(inputs)]
-    print(padded[0].shape)
     padded = np.stack(padded)
-    print(padded.shape)
     return padded
+
+def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename):
+    texts, mels, stfts = pad_to_dense(texts), pad_to_dense(mels), pad_to_dense(stfts)
+
+    inputs = texts, text_lens, mels, stfts, speech_lens
+    names = 'texts', 'text_lens', 'mels', 'stfts', 'speech_lens'
+    names = ['data/' + filename + '/' + name for name in names]
+
+    for name, inp in zip(names, inputs):
+        np.save(name, inp, allow_pickle=False)
 
 def preprocess_blizzard():
 
@@ -102,44 +110,38 @@ def preprocess_blizzard():
             # skip over weird phoneme deconstruction
             if not ttf.readline(): break
 
-    texts, mels, stfts = pad_to_dense(texts), pad_to_dense(mels), pad_to_dense(stfts)
-
-    inputs = texts, text_lens, mels, stfts, speech_lens
-    names = 'texts', 'text_lens', 'mels', 'stfts', 'speech_lens'
-    names = ['data/blizzard/' + name for name in names]
-
-    for name, inp in zip(names, inputs):
-        np.save(name, inp, allow_pickle=False)
-
-
-        
+    save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'blizzard')
 
 def preprocess_arctic():
     proto_file = DATA_DIR + 'cmu_us_slt_arctic/train.proto'
 
-    with open(proto_file, 'w') as pf:
-        writer = tf.python_io.TFRecordWriter(pf.name)
+    # pad out all these jagged arrays and store them in an h5py file
+    texts = []
+    text_lens = []
+    mels = []
+    stfts = []
+    speech_lens = []
 
-        txt_file = DATA_DIR + 'cmu_us_slt_arctic/etc/arctic.data'
-        with open(txt_file, 'r') as tff:
-            for line in tqdm(tff, total=1138):
-                spl = line.split()
-                id = spl[1]
-                text = ' '.join(spl[2:-1])
-                text = text[1:-1]
-                text = [process_char(c) for c in list(text)]
+    txt_file = DATA_DIR + 'cmu_us_slt_arctic/etc/arctic.data'
+    with open(txt_file, 'r') as tff:
+        for line in tqdm(tff, total=1138):
+            spl = line.split()
+            id = spl[1]
+            text = ' '.join(spl[2:-1])
+            text = text[1:-1]
+            text = [process_char(c) for c in list(text)]
 
-                wav_file = DATA_DIR + 'cmu_us_slt_arctic/wav/{}.wav'.format(id)
+            wav_file = DATA_DIR + 'cmu_us_slt_arctic/wav/{}.wav'.format(id)
 
-                mel, stft = audio.process_wav(wav_file, sr=16000)
-                sequence = make_sequence_example(stft, mel, text, 0)
-                writer.write(sequence.SerializeToString())
+            mel, stft = audio.process_wav(wav_file, sr=16000)
 
-        writer.close()
+            texts.append(np.array(text))
+            text_lens.append(len(text))
+            mels.append(mel)
+            stfts.append(stft)
+            speech_lens.append(mel.shape[0])
 
-        # save vocabulary
-        with open(DATA_DIR + 'meta.pkl', 'wb') as vf:
-            pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
+    save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'cmu_us_slt_arctic')
 
 def preprocess_vctk():
     # adapted from https://github.com/buriburisuri/speech-to-text-wavenet/blob/master/preprocess.py
@@ -183,19 +185,21 @@ def preprocess_vctk():
         writer.close()
 
 
-    if mini:
-        # save vocabulary and meta data
-        with open(DATA_DIR + 'mini_meta.pkl', 'wb') as vf:
-            pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
-    else:
-        # save vocabulary
-        with open(DATA_DIR + 'meta.pkl', 'wb') as vf:
-            pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
-
 if __name__ == '__main__':
-    #preprocess_arctic()
-    preprocess_blizzard()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dataset', type=str, help='Provide either "arctic" or "blizzard"')
+    args = parser.parse_args()
+
+    if args.dataset == 'arctic':
+        preprocess_arctic()
+    elif args.dataset == 'blizzard':
+        preprocess_blizzard()
     #preprocess_vctk()
+
+    # save vocabulary
+    with open(DATA_DIR + 'meta.pkl', 'wb') as vf:
+        pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
 
 
 

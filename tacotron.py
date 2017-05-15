@@ -19,10 +19,10 @@ class Config(object):
     fft_size = 1025
 
     r = 5
-    dropout_prob = 0.2
+    dropout_prob = 0.5
     cap_grads = 10
 
-    lr = 0.001
+    lr = 0.0001
     batch_size = 32
 
 
@@ -52,7 +52,7 @@ class Tacotron(object):
         # feed in rth frame at each time step
         decoder_frame_input = \
             lambda inputs, attention: tf.concat(
-                    [tf.slice(self.pre_net(inputs), [0, (config.r - 1)*config.fft_size], [-1, -1]),
+                    [self.pre_net(tf.slice(inputs, [0, (config.r - 1)*config.mel_features], [-1, -1])),
                     attention]
                 , -1)
 
@@ -95,13 +95,13 @@ class Tacotron(object):
             tf.summary.histogram('seq2seq_output', seq2seq_output)
 
         with tf.variable_scope('post-process'):
-            # TODO rearrange frames so everything makes sense for r > 1
 
+            # reshape to account for r value
             post_input = tf.reshape(seq2seq_output, (tf.shape(seq2seq_output)[0], -1, config.mel_features))
             print(seq2seq_output.shape)
             output = ops.CBHG(post_input, inputs['speech_length'], K=8, c=[128,256,80])
-            output = tf.layers.dense(output, units=1025)
-            output = tf.reshape(output, (tf.shape(output)[0], -1, 1025*config.r))
+            output = tf.layers.dense(output, units=config.fft_size)
+            output = tf.reshape(output, (tf.shape(output)[0], -1, config.fft_size*config.r))
 
             tf.summary.histogram('output', output)
 

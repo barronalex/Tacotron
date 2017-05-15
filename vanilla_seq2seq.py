@@ -18,10 +18,10 @@ class Config(object):
     fft_size = 1025
 
     r = 5
-    cap_grads = 10
+    cap_grads = 1
     sampling_prob = 0.5
 
-    lr = 0.001
+    lr = 0.0001
     batch_size = 32
 
 
@@ -67,6 +67,11 @@ class Vanilla_Seq2Seq(object):
                     tf.shape(inputs['text'])[0],
                     config.fft_size * config.r
             )
+            #decoder_helper = helper.ScheduledOutputTrainingHelper(
+                    #inputs['stft'],
+                    #inputs['speech_length'],
+                    #config.sampling_prob
+            #)
 
         dec = basic_decoder.BasicDecoder(
                 cell,
@@ -98,7 +103,8 @@ class Vanilla_Seq2Seq(object):
 
         with tf.variable_scope('decoder'):
             dec = self.create_decoder(encoded, inputs, train)
-            (output, _),  _ = decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
+            with tf.device('/gpu:0'):
+                (output, _),  _ = decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
             print(output.shape)
 
             tf.summary.histogram('output', output)
@@ -106,6 +112,8 @@ class Vanilla_Seq2Seq(object):
         return output
 
     def add_loss_op(self, output, linear):
+        print('output', output)
+        print('linear', linear)
         loss = tf.reduce_sum(tf.abs(output - linear))
         tf.summary.scalar('loss', loss)
         return loss

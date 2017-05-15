@@ -41,16 +41,18 @@ def build_queue(sess, inputs):
             sess.run(enqueue_op, feed_dict=dict(zip(queue_inputs, cur_inputs)))
         print("finished enqueueing")
 
-    batch_inputs = tf.train.shuffle_batch(dequeue_op, batch_size=32,
-            capacity=40, min_after_dequeue=5)
+    # TODO set this back to shuffle once bug is found
     names = ['text', 'text_length', 'stft', 'mel', 'speech_length']
-    batch_inputs = {name: inp for name, inp in zip(names, batch_inputs)}
+    example = {name: inp for name, inp in zip(names, dequeue_op)}
+
+    batch = tf.train.shuffle_batch(example, batch_size=32,
+            capacity=40, min_after_dequeue=5)
 
     enqueue_thread = threading.Thread(target=enqueue, args=[sess])
     enqueue_thread.isDaemon()
     enqueue_thread.start()
 
-    return queue, batch_inputs
+    return queue, batch
 
 def load_from_npy(dirname):
     text = np.load(dirname + 'texts.npy')
@@ -64,10 +66,11 @@ def load_from_npy(dirname):
     speech_length = np.array(speech_length, dtype=np.int32)
     mel = np.array(mel, dtype=np.float32)
 
-    # TODO: fix this shit?
-    speech_length = np.ones(text.shape[0], dtype=np.int32)*68
+    # NOTE: reconstruct zero frames as paper suggests
+    speech_length = np.ones(text.shape[0], dtype=np.int32)*mel.shape[1]
 
     inputs = list((text, text_length, stft, mel, speech_length))
+    
     return inputs
 
 def read_sequence_example(filename_queue, r=1):
@@ -94,9 +97,8 @@ def read_sequence_example(filename_queue, r=1):
 
     return features
 
-def batch_inputs(filename_queue, batch_size=32, r=1):
+def batch_inputs(example, batch_size=32, r=1):
     with tf.device('/cpu:0'):
-        example = read_sequence_example(filename_queue, r=r)
         # separate context length so it can be used to determine bucketing
         speech_length = tf.to_int32(example['speech_length'])
         del example['speech_length']
