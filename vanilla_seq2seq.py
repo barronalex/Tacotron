@@ -10,6 +10,7 @@ import ops
 import sys
 
 class Config(object):
+
     max_decode_iter = 70
     attention_units = 256
     decoder_units = 256
@@ -18,16 +19,17 @@ class Config(object):
     fft_size = 1025
 
     r = 5
-    cap_grads = 1
+    cap_grads = 10
     sampling_prob = 0.5
 
-    lr = 0.0001
+    lr = 0.0005
     batch_size = 32
 
 
 class Vanilla_Seq2Seq(object):
 
     def create_decoder(self, encoded, inputs, train=True):
+        print(encoded.shape)
         config = self.config
         attention_mech = wrapper.BahdanauAttention(
                 config.attention_units,
@@ -63,15 +65,15 @@ class Vanilla_Seq2Seq(object):
                     config.sampling_prob
             )
         else:
+            #decoder_helper = helper.ScheduledOutputTrainingHelper(
+                    #tf.zeros((config.num_prompts, config.max_decode_iter, 5125)),
+                    #tf.ones(config.num_prompts, dtype=tf.int32)*config.max_decode_iter,
+                    #1.0
+            #)
             decoder_helper = ops.InferenceHelper(
                     tf.shape(inputs['text'])[0],
                     config.fft_size * config.r
             )
-            #decoder_helper = helper.ScheduledOutputTrainingHelper(
-                    #inputs['stft'],
-                    #inputs['speech_length'],
-                    #config.sampling_prob
-            #)
 
         dec = basic_decoder.BasicDecoder(
                 cell,
@@ -103,8 +105,7 @@ class Vanilla_Seq2Seq(object):
 
         with tf.variable_scope('decoder'):
             dec = self.create_decoder(encoded, inputs, train)
-            with tf.device('/gpu:0'):
-                (output, _),  _ = decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
+            (output, _),  _ = decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
             print(output.shape)
 
             tf.summary.histogram('output', output)
@@ -114,6 +115,8 @@ class Vanilla_Seq2Seq(object):
     def add_loss_op(self, output, linear):
         print('output', output)
         print('linear', linear)
+        # pad out output to linear
+        output = tf.pad(output, [[0,0], [0, tf.shape(linear)[1] - tf.shape(output)[1]], [0,0]])
         loss = tf.reduce_sum(tf.abs(output - linear))
         tf.summary.scalar('loss', loss)
         return loss

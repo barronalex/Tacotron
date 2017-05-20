@@ -10,19 +10,24 @@ import argparse
 
 import audio
 
-def test(model, config, prompt_file, num_steps=100000):
+def test(model, config, prompt_file):
 
     meta = data_input.load_meta()
     assert config.r == meta['r']
     ivocab = meta['vocab']
     config.vocab_size = len(ivocab)
 
-    batch_inputs = data_input.load_prompts(prompt_file, ivocab)
-
-    # initialize model
-    model = model(config, batch_inputs, train=False)
+    #with tf.device('/cpu:0'):
+        #batch_inputs, config.num_prompts = data_input.load_prompts(prompt_file, ivocab)
 
     with tf.Session() as sess:
+        inputs = data_input.load_from_npy(config.data_path)
+
+        with tf.device('/cpu:0'):
+            queue, batch_inputs = data_input.build_queue(sess, inputs)
+
+        # initialize model
+        model = model(config, batch_inputs, train=False)
 
         train_writer = tf.summary.FileWriter('log/' + config.save_path + '/test', sess.graph)
 
@@ -64,19 +69,22 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('prompts')
     parser.add_argument('-m', '--model', default='tacotron')
+    parser.add_argument('-t', '--train-set', default='arctic')
     args = parser.parse_args()
 
     if args.model == 'tacotron':
         from tacotron import Tacotron, Config
         model = Tacotron
         config = Config()
-        config.save_path = 'tacotron'
+        config.data_path = 'data/%s/' % args.train_set
+        config.save_path = args.train_set + '/tacotron'
         print('Buliding Tacotron')
     else:
         from vanilla_seq2seq import Vanilla_Seq2Seq, Config
         model = Vanilla_Seq2Seq
         config = Config()
-        config.save_path = 'vanilla_seq2seq/scheduled_sample'
+        config.data_path = 'data/%s/' % args.train_set
+        config.save_path = args.train_set + '/vanilla_seq2seq'
         print('Buliding Vanilla_Seq2Seq')
 
     test(model, config, args.prompts)

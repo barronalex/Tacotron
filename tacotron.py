@@ -22,17 +22,18 @@ class Config(object):
     dropout_prob = 0.5
     cap_grads = 10
 
-    lr = 0.0001
+    lr = 0.001
     batch_size = 32
 
 
 class Tacotron(object):
     # transformation applied to input character sequence and decoded frame sequence
     def pre_net(self, inputs, units=[256,128], train=True):
-        layer_1 = tf.layers.dense(inputs, units[0], activation=tf.nn.relu)
-        layer_1 = tf.layers.dropout(layer_1, rate=self.config.dropout_prob, training=train)
-        layer_2 = tf.layers.dense(layer_1, units[1], activation=tf.nn.relu)
-        layer_2 = tf.layers.dropout(layer_2, rate=self.config.dropout_prob, training=train)
+        with tf.variable_scope('pre_net'):
+            layer_1 = tf.layers.dense(inputs, units[0], activation=tf.nn.relu)
+            layer_1 = tf.layers.dropout(layer_1, rate=self.config.dropout_prob, training=train)
+            layer_2 = tf.layers.dense(layer_1, units[1], activation=tf.nn.relu)
+            layer_2 = tf.layers.dropout(layer_2, rate=self.config.dropout_prob, training=train)
         return layer_2
 
     def create_decoder(self, encoded, inputs, train=True):
@@ -52,7 +53,8 @@ class Tacotron(object):
         # feed in rth frame at each time step
         decoder_frame_input = \
             lambda inputs, attention: tf.concat(
-                    [self.pre_net(tf.slice(inputs, [0, (config.r - 1)*config.mel_features], [-1, -1])),
+                    [self.pre_net(tf.slice(inputs,
+                        [0, (config.r - 1)*config.mel_features], [-1, -1])),
                     attention]
                 , -1)
 
@@ -67,7 +69,7 @@ class Tacotron(object):
         if train:
             decoder_helper = helper.TrainingHelper(inputs['mel'], inputs['speech_length'])
         else:
-            decoder_helper = ops.InferenceHelper(config.batch_size, config.fft_size)
+            decoder_helper = ops.InferenceHelper(tf.shape(inputs['text'])[0], config.fft_size)
 
         dec = basic_decoder.BasicDecoder(
                 cell,
@@ -83,10 +85,11 @@ class Tacotron(object):
             embedding = tf.get_variable('embedding',
                     shape=(config.vocab_size, config.embed_dim), dtype=tf.float32)
             embedded_inputs = tf.nn.embedding_lookup(embedding, inputs['text'])
-            print(embedded_inputs.shape)
 
         with tf.variable_scope('encoder'):
             pre_out = self.pre_net(embedded_inputs)
+            tf.summary.histogram('pre_net_out', pre_out)
+
             encoded = ops.CBHG(pre_out, inputs['text_length'], K=16, c=[128,128,128], gru_units=128)
 
         with tf.variable_scope('decoder'):
@@ -98,22 +101,25 @@ class Tacotron(object):
 
             # reshape to account for r value
             post_input = tf.reshape(seq2seq_output, (tf.shape(seq2seq_output)[0], -1, config.mel_features))
-            print(seq2seq_output.shape)
             output = ops.CBHG(post_input, inputs['speech_length'], K=8, c=[128,256,80])
             output = tf.layers.dense(output, units=config.fft_size)
             output = tf.reshape(output, (tf.shape(output)[0], -1, config.fft_size*config.r))
 
             tf.summary.histogram('output', output)
 
+            #tf.summary.histogram('outp')
+
         return seq2seq_output, output
 
     def add_loss_op(self, seq2seq_output, output, mel, linear):
+        output = tf.pad(output,
+                [[0,0], [0, tf.shape(linear)[1] - tf.shape(output)[1]], [0,0]])
+        seq2seq_output = tf.pad(seq2seq_output,
+                [[0,0], [0, tf.shape(linear)[1] - tf.shape(seq2seq_output)[1]], [0,0]])
+
         seq2seq_loss = tf.reduce_sum(tf.abs(seq2seq_output - mel))
         output_loss = tf.reduce_sum(tf.abs(output - linear))
-        if self.config.save_path == 'seq2seq_only':
-            loss = seq2seq_loss
-        else:
-            loss = seq2seq_loss + output_loss
+        loss = seq2seq_loss + output_loss
         tf.summary.scalar('seq2seq loss', seq2seq_loss)
         tf.summary.scalar('output loss', output_loss)
         tf.summary.scalar('loss', loss)
@@ -162,8 +168,3 @@ if __name__ == '__main__':
         loss = sess.run(model.loss)
         print(loss)
         
-
-
-
-
-

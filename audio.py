@@ -49,7 +49,6 @@ def process_wav(fname, n_fft=2048, win_length=1200, hop_length=300, sr=16000):
     stft = reshape_frames(stft)
     mel = reshape_frames(mel)
 
-    # reshape frames
     return mel, stft
 
 def invert_spectrogram(spec, out_fn=None, sr=16000):
@@ -87,6 +86,23 @@ if __name__ == '__main__':
     # simple tests
     fname = 'data/VCTK-Corpus/wav48/p225/p225_004.wav'
     mel, stft = process_wav(fname)
+
+    print(stft.shape)
+    mean = np.mean(stft, axis=0)
+    print(mean.shape)
+
+    print(mean)
+    news = stft - mean
+
+    print(np.sum(np.abs(news - stft)))
+
+    print(np.sum(mean))
+
+    olds = news + mean
+
+    print('might be zero')
+    print(np.sum(np.abs(olds - stft)))
+    print(np.sum(np.abs(news - olds)))
 
     invert_spectrogram(stft, 'test_inv.wav')
 

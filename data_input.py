@@ -61,17 +61,29 @@ def load_from_npy(dirname):
     mel = np.load(dirname + 'mels.npy')
     speech_length = np.load(dirname + 'speech_lens.npy')
 
+    # normalize
+    stft_mean = np.mean(stft, axis=(0,1))
+    mel_mean = np.mean(mel, axis=(0,1))
+    stft_std = np.std(stft, axis=(0,1))
+    mel_std = np.std(mel, axis=(0,1))
+
+    stft -= stft_mean
+    mel -= mel_mean
+    stft /= stft_std
+    mel /= mel_std
+
     text = np.array(text, dtype=np.int32)
     text_length = np.array(text_length, dtype=np.int32)
     speech_length = np.array(speech_length, dtype=np.int32)
     mel = np.array(mel, dtype=np.float32)
 
     # NOTE: reconstruct zero frames as paper suggests
-    speech_length = np.ones(text.shape[0], dtype=np.int32)*mel.shape[1]
+    # NOTE: this was causes errors and worse training so I've fixed it
+    #speech_length = np.ones(text.shape[0], dtype=np.int32)*mel.shape[1]
 
     inputs = list((text, text_length, stft, mel, speech_length))
     
-    return inputs
+    return inputs, stft_mean, stft_std
 
 def read_sequence_example(filename_queue, r=1):
     reader = tf.TFRecordReader()
@@ -133,7 +145,7 @@ def load_prompts(prompt_file, ivocab):
                 batch_size=32,
                 allow_smaller_final_batch=True)
         print(batches)
-        return batches
+        return batches, len(lines)
         
 def load_meta():
     with open('data/meta.pkl', 'rb') as vf:

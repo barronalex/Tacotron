@@ -47,58 +47,69 @@ def highway(inputs, units=128, scope='highway'):
         return C
 
 def CBHG(inputs, sequence_len, K=16, c=[128,128,128], gru_units=128, num_highway_layers=4, num_conv_proj=2):
-    # 1D convolution bank
-    conv_bank = [tf.layers.conv1d(
-        inputs,
-        filters=c[0],
-        kernel_size=k,
-        padding='same',
-        activation=tf.nn.relu
-    ) for k in range(1, K+1)]
+    with tf.variable_scope('cbhg'):
+        # 1D convolution bank
+        conv_bank = [tf.layers.conv1d(
+            inputs,
+            filters=c[0],
+            kernel_size=k,
+            padding='same',
+            activation=tf.nn.relu
+        ) for k in range(1, K+1)]
 
-    conv_bank = tf.concat(conv_bank, -1)
+        conv_bank = tf.concat(conv_bank, -1)
 
-    conv_bank = tf.layers.batch_normalization(conv_bank)
+        conv_bank = tf.layers.batch_normalization(conv_bank)
 
-    conv_bank = tf.layers.max_pooling1d(
-            conv_bank, 
-            pool_size=2,
-            strides=1,
-            padding='same'
+        conv_bank = tf.layers.max_pooling1d(
+                conv_bank, 
+                pool_size=2,
+                strides=1,
+                padding='same'
+            )
+
+        tf.summary.histogram('conv_bank', conv_bank)
+
+        assert num_conv_proj == len(c) - 1
+        conv_proj = conv_bank
+        for layer in range(num_conv_proj):
+            activation = None if layer == num_conv_proj - 1 else tf.nn.relu
+            # conv projections
+            conv_proj = tf.layers.conv1d(
+                    conv_proj,
+                    filters=c[layer+1],
+                    kernel_size=3,
+                    padding='same',
+                    activation=activation
+            )
+            conv_proj = tf.layers.batch_normalization(conv_proj)
+
+        tf.summary.histogram('conv_proj', conv_proj)
+
+        # residual connection
+        conv_res = conv_proj + inputs
+
+        tf.summary.histogram('conv_res', conv_res)
+
+        # highway feature extraction
+        h = conv_res
+        for layer in range(num_highway_layers):
+            h = highway(h, scope='highway_' + str(layer))
+
+        tf.summary.histogram('highway_out', h)
+
+        # bi-GRU
+        forward_gru_cell = GRUCell(gru_units)
+        backward_gru_cell = GRUCell(gru_units)
+        out = tf.nn.bidirectional_dynamic_rnn(
+                forward_gru_cell,
+                backward_gru_cell,
+                h,
+                sequence_length=sequence_len,
+                dtype=tf.float32
         )
+        out = tf.concat(out[0], -1)
 
-    assert num_conv_proj == len(c) - 1
-    conv_proj = conv_bank
-    for layer in range(num_conv_proj):
-        activation = None if layer == num_conv_proj - 1 else tf.nn.relu
-        # conv projections
-        conv_proj = tf.layers.conv1d(
-                conv_bank,
-                filters=c[layer+1],
-                kernel_size=3,
-                padding='same',
-                activation=activation
-        )
-        conv_proj = tf.layers.batch_normalization(conv_proj)
+        tf.summary.histogram('encoded', out)
 
-    # residual connection
-    conv_res = conv_proj + inputs
-
-    # highway feature extraction
-    h = conv_res
-    for layer in range(num_highway_layers):
-        h = highway(h, scope='highway_' + str(layer))
-
-    # bi-GRU
-    forward_gru_cell = GRUCell(gru_units)
-    backward_gru_cell = GRUCell(gru_units)
-    out = tf.nn.bidirectional_dynamic_rnn(
-            forward_gru_cell,
-            backward_gru_cell,
-            h,
-            sequence_length=sequence_len,
-            dtype=tf.float32
-    )
-    out = tf.concat(out[0], -1)
-
-    return out
+        return out

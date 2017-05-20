@@ -10,9 +10,9 @@ import argparse
 
 import audio
 
-SAVE_EVERY = 500
-RESTORE_FROM = 133000
-restore = True
+SAVE_EVERY = 5000
+RESTORE_FROM = None
+restore = False
 
 def train(model, config, num_steps=100000):
 
@@ -24,7 +24,7 @@ def train(model, config, num_steps=100000):
 
     with tf.Session() as sess:
 
-        inputs = data_input.load_from_npy('data/blizzard/')
+        inputs, stft_mean, stft_std = data_input.load_from_npy(config.data_path)
 
         with tf.device('/cpu:0'):
             queue, batch_inputs = data_input.build_queue(sess, inputs)
@@ -52,7 +52,7 @@ def train(model, config, num_steps=100000):
 
         
         # for debugging
-        run_options = tf.RunOptions(timeout_in_ms=4000)
+        run_options = tf.RunOptions(timeout_in_ms=40000)
 
         for _ in tqdm(range(num_steps)):
             out = sess.run([
@@ -75,6 +75,10 @@ def train(model, config, num_steps=100000):
                 saver.save(sess, 'weights/' + config.save_path, global_step=global_step)
                 print('saving sample')
                 # store a sample to listen to
+                output *= stft_std
+                output += stft_mean
+                inputs['stft'] *= stft_std
+                inputs['stft'] += stft_mean
                 sample = audio.invert_spectrogram(output[17])
                 ideal = audio.invert_spectrogram(inputs['stft'][17])
                 merged = sess.run(tf.summary.merge(
@@ -90,6 +94,7 @@ def train(model, config, num_steps=100000):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--model', default='tacotron')
+    parser.add_argument('-t', '--train-set', default='arctic')
     parser.add_argument('-d', '--debug', type=int, default=0)
     args = parser.parse_args()
 
@@ -97,19 +102,21 @@ if __name__ == '__main__':
         from tacotron import Tacotron, Config
         model = Tacotron
         config = Config()
+        config.data_path = 'data/%s/' % args.train_set
         if args.debug: 
             config.save_path = 'debug'
         else:
-            config.save_path = 'blizzard/tacotron'
+            config.save_path = args.train_set + '/tacotron'
         print('Buliding Tacotron')
     else:
         from vanilla_seq2seq import Vanilla_Seq2Seq, Config
         model = Vanilla_Seq2Seq
         config = Config()
+        config.data_path = 'data/%s/' % args.train_set
         if args.debug: 
             config.save_path = 'debug'
         else:
-            config.save_path = 'blizzard/vanilla_seq2seq'
+            config.save_path = args.train_set + '/vanilla_seq2seq'
         print('Buliding Vanilla_Seq2Seq')
 
     train(model, config)

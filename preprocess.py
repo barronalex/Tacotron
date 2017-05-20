@@ -66,11 +66,14 @@ def pad_to_dense(inputs):
 def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename):
     texts, mels, stfts = pad_to_dense(texts), pad_to_dense(mels), pad_to_dense(stfts)
 
+    text_lens, speech_lens = np.array(text_lens), np.array(speech_lens)
+
     inputs = texts, text_lens, mels, stfts, speech_lens
     names = 'texts', 'text_lens', 'mels', 'stfts', 'speech_lens'
     names = ['data/' + filename + '/' + name for name in names]
 
     for name, inp in zip(names, inputs):
+        print(name, inp.shape)
         np.save(name, inp, allow_pickle=False)
 
 def preprocess_blizzard():
@@ -113,7 +116,7 @@ def preprocess_blizzard():
     save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'blizzard')
 
 def preprocess_arctic():
-    proto_file = DATA_DIR + 'cmu_us_slt_arctic/train.proto'
+    proto_file = DATA_DIR + 'arctic/train.proto'
 
     # pad out all these jagged arrays and store them in an h5py file
     texts = []
@@ -122,7 +125,7 @@ def preprocess_arctic():
     stfts = []
     speech_lens = []
 
-    txt_file = DATA_DIR + 'cmu_us_slt_arctic/etc/arctic.data'
+    txt_file = DATA_DIR + 'arctic/etc/arctic.data'
     with open(txt_file, 'r') as tff:
         for line in tqdm(tff, total=1138):
             spl = line.split()
@@ -131,7 +134,7 @@ def preprocess_arctic():
             text = text[1:-1]
             text = [process_char(c) for c in list(text)]
 
-            wav_file = DATA_DIR + 'cmu_us_slt_arctic/wav/{}.wav'.format(id)
+            wav_file = DATA_DIR + 'arctic/wav/{}.wav'.format(id)
 
             mel, stft = audio.process_wav(wav_file, sr=16000)
 
@@ -141,7 +144,7 @@ def preprocess_arctic():
             stfts.append(stft)
             speech_lens.append(mel.shape[0])
 
-    save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'cmu_us_slt_arctic')
+    save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'arctic')
 
 def preprocess_vctk():
     # adapted from https://github.com/buriburisuri/speech-to-text-wavenet/blob/master/preprocess.py
@@ -198,6 +201,7 @@ if __name__ == '__main__':
     #preprocess_vctk()
 
     # save vocabulary
+    print('saving vocab')
     with open(DATA_DIR + 'meta.pkl', 'wb') as vf:
         pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
 
