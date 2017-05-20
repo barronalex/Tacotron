@@ -73,14 +73,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.model == 'tacotron':
-        from tacotron import Tacotron, Config
+        from models.tacotron import Tacotron, Config
         model = Tacotron
         config = Config()
         config.data_path = 'data/%s/' % args.train_set
         config.save_path = args.train_set + '/tacotron'
         print('Buliding Tacotron')
     else:
-        from vanilla_seq2seq import Vanilla_Seq2Seq, Config
+        from models.vanilla_seq2seq import Vanilla_Seq2Seq, Config
         model = Vanilla_Seq2Seq
         config = Config()
         config.data_path = 'data/%s/' % args.train_set
