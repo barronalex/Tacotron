@@ -52,7 +52,7 @@ def train(model, config, num_steps=100000):
 
         
         # for debugging
-        run_options = tf.RunOptions(timeout_in_ms=40000)
+        run_options = tf.RunOptions(timeout_in_ms=20000)
 
         for _ in tqdm(range(num_steps)):
             out = sess.run([

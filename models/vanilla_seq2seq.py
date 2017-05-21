@@ -5,8 +5,7 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import *
 from tensorflow.contrib.seq2seq.python.ops \
         import dynamic_attention_wrapper as wrapper, helper, basic_decoder, decoder
-
-import ops
+import models.ops as ops
 import sys
 
 class Config(object):

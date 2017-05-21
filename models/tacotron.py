@@ -5,8 +5,8 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import *
 from tensorflow.contrib.seq2seq.python.ops \
         import dynamic_attention_wrapper as wrapper, helper, basic_decoder, decoder
+import models.ops as ops
 
-import ops
 import sys
 
 class Config(object):
@@ -91,6 +91,7 @@ class Tacotron(object):
             tf.summary.histogram('pre_net_out', pre_out)
 
             encoded = ops.CBHG(pre_out, inputs['text_length'], K=16, c=[128,128,128], gru_units=128)
+            print('encoded', encoded.shape)
 
         with tf.variable_scope('decoder'):
             dec = self.create_decoder(encoded, inputs, train)
@@ -106,8 +107,6 @@ class Tacotron(object):
             output = tf.reshape(output, (tf.shape(output)[0], -1, config.fft_size*config.r))
 
             tf.summary.histogram('output', output)
-
-            #tf.summary.histogram('outp')
 
         return seq2seq_output, output
 
