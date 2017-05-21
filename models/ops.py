@@ -101,7 +101,7 @@ def CBHG(inputs, sequence_len, K=16, c=[128,128,128], gru_units=128, num_highway
         tf.summary.histogram('highway_out', h)
 
         #NOTE DEBUG
-        return tf.layers.dense(h, gru_units*2, activation=tf.nn.relu)
+        #return tf.layers.dense(h, gru_units*2, activation=tf.nn.relu)
 
         # NOTE: DEBUG
         # bi-GRU
@@ -111,7 +111,6 @@ def CBHG(inputs, sequence_len, K=16, c=[128,128,128], gru_units=128, num_highway
                 forward_gru_cell,
                 backward_gru_cell,
                 h,
-                sequence_length=sequence_len,
                 dtype=tf.float32
         )
         out = tf.concat(out, 2)

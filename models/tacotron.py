@@ -102,7 +102,7 @@ class Tacotron(object):
 
             # reshape to account for r value
             post_input = tf.reshape(seq2seq_output, (tf.shape(seq2seq_output)[0], -1, config.mel_features))
-            output = ops.CBHG(post_input, inputs['speech_length'], K=8, c=[128,256,80])
+            output = ops.CBHG(post_input, inputs['speech_length'], K=8, c=[128,256,80], gru_units=128)
             output = tf.layers.dense(output, units=config.fft_size)
             output = tf.reshape(output, (tf.shape(output)[0], -1, config.fft_size*config.r))
 
