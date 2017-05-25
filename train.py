@@ -96,6 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--model', default='tacotron')
     parser.add_argument('-t', '--train-set', default='arctic')
     parser.add_argument('-d', '--debug', type=int, default=0)
+    parser.add_argument('-r', '--restore', type=int, default=0)
     args = parser.parse_args()
 
     if args.model == 'tacotron':

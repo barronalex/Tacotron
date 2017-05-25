@@ -22,7 +22,7 @@ class Config(object):
     dropout_prob = 0.5
     cap_grads = 10
 
-    lr = 0.001
+    lr = 0.0005
     batch_size = 32
 
 
@@ -69,16 +69,15 @@ class Tacotron(object):
         if train:
             decoder_helper = helper.TrainingHelper(inputs['mel'], inputs['speech_length'])
         else:
-            #decoder_helper = helper.TrainingHelper(inputs['mel'], inputs['speech_length'])
             decoder_helper = ops.InferenceHelper(
                     tf.shape(inputs['text'])[0],
-                    config.mel_features*config.r
+                    config.mel_features * config.r
             )
 
         dec = basic_decoder.BasicDecoder(
                 cell,
                 decoder_helper,
-                cell.zero_state(dtype=tf.float32, batch_size=config.batch_size)
+                cell.zero_state(dtype=tf.float32, batch_size=tf.shape(inputs['text'])[0])
         )
 
         return dec

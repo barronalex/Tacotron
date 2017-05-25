@@ -17,14 +17,14 @@ def test(model, config, prompt_file):
     ivocab = meta['vocab']
     config.vocab_size = len(ivocab)
 
-    #with tf.device('/cpu:0'):
-        #batch_inputs, config.num_prompts = data_input.load_prompts(prompt_file, ivocab)
+    with tf.device('/cpu:0'):
+        batch_inputs, config.num_prompts = data_input.load_prompts(prompt_file, ivocab)
 
     with tf.Session() as sess:
         inputs, stft_mean, stft_std = data_input.load_from_npy(config.data_path)
 
-        with tf.device('/cpu:0'):
-            queue, batch_inputs = data_input.build_queue(sess, inputs)
+        #with tf.device('/cpu:0'):
+            #queue, batch_inputs = data_input.build_queue(sess, inputs)
 
         # initialize model
         model = model(config, batch_inputs, train=False)
@@ -63,7 +63,6 @@ def test(model, config, prompt_file):
                          [tf.summary.audio(text, sample[None, :], 16000)]
                     ))
                     train_writer.add_summary(merged, 0)
-                    break
         except tf.errors.OutOfRangeError:
             coord.request_stop()
             coord.join(threads)
