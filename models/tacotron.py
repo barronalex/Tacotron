@@ -4,7 +4,7 @@ from __future__ import division
 import tensorflow as tf
 from tensorflow.contrib.rnn import *
 from tensorflow.contrib.seq2seq.python.ops \
-        import dynamic_attention_wrapper as wrapper, helper, basic_decoder, decoder
+        import attention_wrapper as wrapper, helper, basic_decoder, decoder
 import models.ops as ops
 
 import sys
@@ -58,10 +58,10 @@ class Tacotron(object):
                     attention]
                 , -1)
 
-        cell = wrapper.DynamicAttentionWrapper(
+        cell = wrapper.AttentionWrapper(
                 decoder_cell,
                 attention_mech,
-                attention_size=config.attention_units,
+                attention_layer_size=config.attention_units,
                 cell_input_fn=decoder_frame_input,
                 output_attention=False
         )
@@ -98,7 +98,8 @@ class Tacotron(object):
 
         with tf.variable_scope('decoder'):
             dec = self.create_decoder(encoded, inputs, train)
-            (seq2seq_output, _),  _ = decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
+            (seq2seq_output, _), _, _ = decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
+            print(seq2seq_output)
             tf.summary.histogram('seq2seq_output', seq2seq_output)
 
         with tf.variable_scope('post-process'):

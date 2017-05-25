@@ -5,53 +5,30 @@ import os
 import threading
 import sys
 
-QUEUE_CAPACITY = 50
-QUEUE_INPUT_SIZE = 20
+BATCH_SIZE = 32
+SHUFFLE_BUFFER_SIZE = 1000
 
-# adapted from http://126kr.com/article/5cikb02omea
-def build_queue(sess, inputs):
-    queue_inputs = []
+def build_dataset(sess, inputs):
+    placeholders = []
     for inp in inputs:
-        shape = [QUEUE_INPUT_SIZE] + list(inp.shape[1:])
-        queue_inputs.append(tf.placeholder(inp.dtype, shape))
+        placeholders.append(tf.placeholder(inp.dtype, inp.shape))
 
-    queue = tf.FIFOQueue(capacity=QUEUE_CAPACITY,
-            dtypes=[inp.dtype for inp in inputs],
-            shapes=[inp.shape[1:] for inp in inputs])
-    enqueue_op = queue.enqueue_many(queue_inputs)
-    dequeue_op = queue.dequeue()
+    with tf.device('/cpu:0'):
+        dataset = tf.contrib.data.Dataset.from_tensor_slices(placeholders)
+        dataset = dataset.repeat()
+        dataset = dataset.shuffle(buffer_size=SHUFFLE_BUFFER_SIZE)
+        dataset = dataset.batch(BATCH_SIZE)
+        iterator = dataset.make_initializable_iterator()
 
-    def enqueue(sess):
-        under = 0
-        max_len = len(inputs[0])
-        print("starting to write into queue")
-        while True:
-            upper = under + QUEUE_INPUT_SIZE
-            cur_inputs = []
-            if upper <= max_len:
-                for inp in inputs:
-                    cur_inputs.append(inp[under:upper])
-                under = upper
-            else:
-                rest = upper - max_len
-                for inp in inputs:
-                    cur_inputs.append(np.concatenate((inp[under:max_len], inp[0:rest])))
-                under = rest
-     
-            sess.run(enqueue_op, feed_dict=dict(zip(queue_inputs, cur_inputs)))
-        print("finished enqueueing")
+        batch_inputs = iterator.get_next()
+        names = ['text', 'text_length', 'stft', 'mel', 'speech_length']
+        batch_inputs = {na: inp for na, inp in zip(names, batch_inputs)}
+        for name, inp in batch_inputs.items():
+            print(name, inp)
 
-    names = ['text', 'text_length', 'stft', 'mel', 'speech_length']
-    example = {name: inp for name, inp in zip(names, dequeue_op)}
+        sess.run(iterator.initializer, feed_dict=dict(zip(placeholders, inputs)))
 
-    batch = tf.train.shuffle_batch(example, batch_size=32,
-            capacity=40, min_after_dequeue=5)
-
-    enqueue_thread = threading.Thread(target=enqueue, args=[sess])
-    enqueue_thread.isDaemon()
-    enqueue_thread.start()
-
-    return queue, batch
+    return batch_inputs
 
 def load_from_npy(dirname):
     text = np.load(dirname + 'texts.npy')

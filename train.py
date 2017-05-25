@@ -26,8 +26,7 @@ def train(model, config, num_steps=100000):
 
         inputs, stft_mean, stft_std = data_input.load_from_npy(config.data_path)
 
-        with tf.device('/cpu:0'):
-            queue, batch_inputs = data_input.build_queue(sess, inputs)
+        batch_inputs = data_input.build_dataset(sess, inputs)
 
         # initialize model
         model = model(config, batch_inputs, train=True)
