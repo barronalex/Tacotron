@@ -41,7 +41,6 @@ def build_queue(sess, inputs):
             sess.run(enqueue_op, feed_dict=dict(zip(queue_inputs, cur_inputs)))
         print("finished enqueueing")
 
-    # TODO set this back to shuffle once bug is found
     names = ['text', 'text_length', 'stft', 'mel', 'speech_length']
     example = {name: inp for name, inp in zip(names, dequeue_op)}
 
@@ -78,8 +77,7 @@ def load_from_npy(dirname):
     mel = np.array(mel, dtype=np.float32)
 
     # NOTE: reconstruct zero frames as paper suggests
-    # NOTE: this was causes errors and worse training so I've fixed it
-    #speech_length = np.ones(text.shape[0], dtype=np.int32)*mel.shape[1]
+    speech_length = np.ones(text.shape[0], dtype=np.int32)*mel.shape[1]
 
     inputs = list((text, text_length, stft, mel, speech_length))
     
@@ -147,8 +145,8 @@ def load_prompts(prompt_file, ivocab):
         print(batches)
         return batches, len(lines)
         
-def load_meta():
-    with open('data/meta.pkl', 'rb') as vf:
+def load_meta(data_path):
+    with open('%s/meta.pkl' % data_path, 'rb') as vf:
         meta = pkl.load(vf)
     return meta
 

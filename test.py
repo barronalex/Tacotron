@@ -12,7 +12,7 @@ import audio
 
 def test(model, config, prompt_file):
 
-    meta = data_input.load_meta()
+    meta = data_input.load_meta(config.data_path)
     assert config.r == meta['r']
     ivocab = meta['vocab']
     config.vocab_size = len(ivocab)
@@ -21,7 +21,7 @@ def test(model, config, prompt_file):
         #batch_inputs, config.num_prompts = data_input.load_prompts(prompt_file, ivocab)
 
     with tf.Session() as sess:
-        inputs = data_input.load_from_npy(config.data_path)
+        inputs, stft_mean, stft_std = data_input.load_from_npy(config.data_path)
 
         with tf.device('/cpu:0'):
             queue, batch_inputs = data_input.build_queue(sess, inputs)
@@ -56,11 +56,14 @@ def test(model, config, prompt_file):
                 for out, words in zip(outputs, inputs['text']):
                     # store a sample to listen to
                     text = ''.join([ivocab[w] for w in words])
+                    out *= stft_std
+                    out += stft_mean
                     sample = audio.invert_spectrogram(out)
                     merged = sess.run(tf.summary.merge(
                          [tf.summary.audio(text, sample[None, :], 16000)]
                     ))
                     train_writer.add_summary(merged, 0)
+                    break
         except tf.errors.OutOfRangeError:
             coord.request_stop()
             coord.join(threads)

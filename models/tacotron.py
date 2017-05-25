@@ -10,7 +10,7 @@ import models.ops as ops
 import sys
 
 class Config(object):
-    max_decode_iter = 1000
+    max_decode_iter = 70
     attention_units = 256
     decoder_units = 256
     mel_features = 80
@@ -54,7 +54,7 @@ class Tacotron(object):
         decoder_frame_input = \
             lambda inputs, attention: tf.concat(
                     [self.pre_net(tf.slice(inputs,
-                        [0, (config.r - 1)*config.mel_features], [-1, -1])),
+                        [0, (config.r - 1)*config.mel_features], [-1, -1]), train=train),
                     attention]
                 , -1)
 
@@ -69,7 +69,11 @@ class Tacotron(object):
         if train:
             decoder_helper = helper.TrainingHelper(inputs['mel'], inputs['speech_length'])
         else:
-            decoder_helper = ops.InferenceHelper(tf.shape(inputs['text'])[0], config.fft_size)
+            #decoder_helper = helper.TrainingHelper(inputs['mel'], inputs['speech_length'])
+            decoder_helper = ops.InferenceHelper(
+                    tf.shape(inputs['text'])[0],
+                    config.mel_features*config.r
+            )
 
         dec = basic_decoder.BasicDecoder(
                 cell,
@@ -87,10 +91,10 @@ class Tacotron(object):
             embedded_inputs = tf.nn.embedding_lookup(embedding, inputs['text'])
 
         with tf.variable_scope('encoder'):
-            pre_out = self.pre_net(embedded_inputs)
+            pre_out = self.pre_net(embedded_inputs, train=train)
             tf.summary.histogram('pre_net_out', pre_out)
 
-            encoded = ops.CBHG(pre_out, inputs['text_length'], K=16, c=[128,128,128], gru_units=128)
+            encoded = ops.CBHG(pre_out, K=16, c=[128,128,128], gru_units=128)
             print('encoded', encoded.shape)
 
         with tf.variable_scope('decoder'):
@@ -99,10 +103,9 @@ class Tacotron(object):
             tf.summary.histogram('seq2seq_output', seq2seq_output)
 
         with tf.variable_scope('post-process'):
-
             # reshape to account for r value
             post_input = tf.reshape(seq2seq_output, (tf.shape(seq2seq_output)[0], -1, config.mel_features))
-            output = ops.CBHG(post_input, inputs['speech_length'], K=8, c=[128,256,80], gru_units=128)
+            output = ops.CBHG(post_input, K=8, c=[128,256,80], gru_units=128)
             output = tf.layers.dense(output, units=config.fft_size)
             output = tf.reshape(output, (tf.shape(output)[0], -1, config.fft_size*config.r))
 
@@ -111,6 +114,7 @@ class Tacotron(object):
         return seq2seq_output, output
 
     def add_loss_op(self, seq2seq_output, output, mel, linear):
+        tf.summary.scalar('max_batch_seq_len', tf.shape(output)[1])
         output = tf.pad(output,
                 [[0,0], [0, tf.shape(linear)[1] - tf.shape(output)[1]], [0,0]])
         seq2seq_output = tf.pad(seq2seq_output,
@@ -126,16 +130,24 @@ class Tacotron(object):
 
     def add_train_op(self, loss):
         opt = tf.train.AdamOptimizer(learning_rate=self.config.lr)
-        gvs = opt.compute_gradients(loss)
+        gradients, variables = zip(*opt.compute_gradients(loss))
+        for grad in gradients:
+            if 'BasicDecoder' in grad.name or 'gru_cell' in grad.name or 'highway_3' in grad.name:
+                tf.summary.scalar(grad.name, tf.reduce_sum(grad))
 
         # optionally cap and noise gradients to regularize
         if self.config.cap_grads:
             with tf.variable_scope('cap_grads'):
-                gvs = [(tf.clip_by_norm(grad, self.config.cap_grads), var) \
-                        for grad, var in gvs if grad is not None]
+                tf.summary.scalar('global_gradient_norm', tf.global_norm(gradients))
+                gradients, _ = tf.clip_by_global_norm(gradients, self.config.cap_grads)
 
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
-        train_op = opt.apply_gradients(gvs, global_step=self.global_step)
+
+        # skip update if its too big
+        #train_op = tf.cond(gn < self.config.cap_grads,
+                #lambda: opt.apply_gradients(zip(grads, variables), global_step=self.global_step),
+                #lambda: tf.no_op())
+        train_op = opt.apply_gradients(zip(gradients, variables), global_step=self.global_step)
         return train_op
 
     def __init__(self, config, inputs, train=True):
@@ -145,6 +157,7 @@ class Tacotron(object):
             self.loss = self.add_loss_op(self.seq2seq_output, self.output, inputs['mel'], inputs['stft'])
             self.train_op = self.add_train_op(self.loss)
         self.merged = tf.summary.merge_all()
+
 
 if __name__ == '__main__':
     # tests

@@ -6,7 +6,7 @@
 wget http://festvox.org/cmu_arctic/cmu_arctic/packed/cmu_us_slt_arctic-0.95-release.zip
 unzip cmu_us_slt_arctic-0.95-release.zip
 rm cmu_us_slt_arctic-0.95-release.zip
-mv cmu_us_slt_arctic data
+mv cmu_us_slt_arctic data/arctic
 
 #wget http://www.openslr.org/resources/12/dev-clean.tar.gz
 #wget http://www.openslr.org/resources/12/test-clean.tar.gz

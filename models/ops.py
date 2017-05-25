@@ -46,7 +46,7 @@ def highway(inputs, units=128, scope='highway'):
         C = H*T + inputs*(1-T)
         return C
 
-def CBHG(inputs, sequence_len, K=16, c=[128,128,128], gru_units=128, num_highway_layers=4, num_conv_proj=2):
+def CBHG(inputs, K=16, c=[128,128,128], gru_units=128, num_highway_layers=4, num_conv_proj=2):
 
     with tf.variable_scope('cbhg'):
 
@@ -100,10 +100,6 @@ def CBHG(inputs, sequence_len, K=16, c=[128,128,128], gru_units=128, num_highway
 
         tf.summary.histogram('highway_out', h)
 
-        #NOTE DEBUG
-        #return tf.layers.dense(h, gru_units*2, activation=tf.nn.relu)
-
-        # NOTE: DEBUG
         # bi-GRU
         forward_gru_cell = GRUCell(gru_units)
         backward_gru_cell = GRUCell(gru_units)

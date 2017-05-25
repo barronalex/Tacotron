@@ -16,7 +16,7 @@ restore = False
 
 def train(model, config, num_steps=100000):
 
-    meta = data_input.load_meta()
+    meta = data_input.load_meta(config.data_path)
     assert config.r == meta['r']
     ivocab = meta['vocab']
     config.vocab_size = len(ivocab)

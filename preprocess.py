@@ -115,6 +115,48 @@ def preprocess_blizzard():
 
     save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'blizzard')
 
+    # save vocabulary
+    print('saving vocab')
+    with open(DATA_DIR + 'blizzard/meta.pkl', 'wb') as vf:
+        pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
+
+def preprocess_nancy():
+
+    num_examples = 12095
+    nancy_dir = DATA_DIR + 'nancy/' 
+    txt_file = nancy_dir + 'prompts.data'
+
+    # pad out all these jagged arrays and store them in an h5py file
+    texts = []
+    text_lens = []
+    mels = []
+    stfts = []
+    speech_lens = []
+
+    with open(txt_file, 'r') as ttf:
+        for line in tqdm(ttf, total=num_examples):
+            id = line.split()[1]
+            text = line[line.find('"')+1:line.rfind('"')-1]
+
+            text = [process_char(c) for c in list(text)]
+
+            # now load wav file
+            wav_file = nancy_dir + 'wavn/' + id + '.wav'
+            mel, stft = audio.process_wav(wav_file, sr=16000)
+            if mel.shape[0] < 70:
+                texts.append(np.array(text))
+                text_lens.append(len(text))
+                mels.append(mel)
+                stfts.append(stft)
+                speech_lens.append(mel.shape[0])
+
+    save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'nancy')
+
+    # save vocabulary
+    print('saving vocab')
+    with open(DATA_DIR + 'nancy/meta.pkl', 'wb') as vf:
+        pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
+
 def preprocess_arctic():
     proto_file = DATA_DIR + 'arctic/train.proto'
 
@@ -145,6 +187,11 @@ def preprocess_arctic():
             speech_lens.append(mel.shape[0])
 
     save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'arctic')
+
+    # save vocabulary
+    print('saving vocab')
+    with open(DATA_DIR + 'arctic/meta.pkl', 'wb') as vf:
+        pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
 
 def preprocess_vctk():
     # adapted from https://github.com/buriburisuri/speech-to-text-wavenet/blob/master/preprocess.py
@@ -198,12 +245,10 @@ if __name__ == '__main__':
         preprocess_arctic()
     elif args.dataset == 'blizzard':
         preprocess_blizzard()
+    elif args.dataset == 'nancy':
+        preprocess_nancy()
     #preprocess_vctk()
 
-    # save vocabulary
-    print('saving vocab')
-    with open(DATA_DIR + 'meta.pkl', 'wb') as vf:
-        pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
 
 
 
