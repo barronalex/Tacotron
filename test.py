@@ -23,6 +23,8 @@ def test(model, config, prompt_file):
     with tf.Session() as sess:
         inputs, stft_mean, stft_std = data_input.load_from_npy(config.data_path)
 
+        #batch_inputs = data_input.build_dataset(sess, inputs)
+
         #with tf.device('/cpu:0'):
             #queue, batch_inputs = data_input.build_queue(sess, inputs)
 

@@ -50,9 +50,6 @@ def train(model, config, num_steps=100000):
                 saver.restore(sess, 'weights/' + config.save_path + '-' + str(RESTORE_FROM))
 
         
-        # for debugging
-        run_options = tf.RunOptions(timeout_in_ms=20000)
-
         for _ in tqdm(range(num_steps)):
             out = sess.run([
                 model.train_op,
@@ -61,7 +58,7 @@ def train(model, config, num_steps=100000):
                 model.output,
                 model.merged,
                 batch_inputs
-            ], options=run_options)
+            ])
             _, global_step, loss, output, summary, inputs = out
             if np.isnan(loss):
                 print(inputs)
