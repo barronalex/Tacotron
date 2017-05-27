@@ -27,7 +27,8 @@ class Config(object):
 
 
 class Tacotron(object):
-    # transformation applied to input character sequence and decoded frame sequence
+    # transformation applied to input character sequence
+    # and each input frame to the decoder
     def pre_net(self, inputs, units=[256,128], train=True):
         with tf.variable_scope('pre_net'):
             layer_1 = tf.layers.dense(inputs, units[0], activation=tf.nn.relu)
@@ -84,69 +85,70 @@ class Tacotron(object):
 
     def inference(self, inputs, train=True):
         config = self.config
+
+        # extract character representations from embedding
         with tf.variable_scope('embedding', initializer=tf.contrib.layers.xavier_initializer()):
             embedding = tf.get_variable('embedding',
                     shape=(config.vocab_size, config.embed_dim), dtype=tf.float32)
             embedded_inputs = tf.nn.embedding_lookup(embedding, inputs['text'])
 
+        # process text input with CBHG module 
         with tf.variable_scope('encoder'):
             pre_out = self.pre_net(embedded_inputs, train=train)
             tf.summary.histogram('pre_net_out', pre_out)
 
             encoded = ops.CBHG(pre_out, K=16, c=[128,128,128], gru_units=128)
-            print('encoded', encoded.shape)
 
+        # pass through attention based decoder
         with tf.variable_scope('decoder'):
             dec = self.create_decoder(encoded, inputs, train)
-            (seq2seq_output, _), _, _ = decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
-            print(seq2seq_output)
+            (seq2seq_output, _), _, _ = \
+                    decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
             tf.summary.histogram('seq2seq_output', seq2seq_output)
 
+        # use second CBHG module to process mel features into linear spectogram
         with tf.variable_scope('post-process'):
             # reshape to account for r value
-            post_input = tf.reshape(seq2seq_output, (tf.shape(seq2seq_output)[0], -1, config.mel_features))
+            post_input = tf.reshape(seq2seq_output, 
+                    (tf.shape(seq2seq_output)[0], -1, config.mel_features))
+
             output = ops.CBHG(post_input, K=8, c=[128,256,80], gru_units=128)
             output = tf.layers.dense(output, units=config.fft_size)
-            output = tf.reshape(output, (tf.shape(output)[0], -1, config.fft_size*config.r))
 
+            # reshape back to r frame representation
+            output = tf.reshape(output, (tf.shape(output)[0], -1, config.fft_size*config.r))
             tf.summary.histogram('output', output)
 
         return seq2seq_output, output
 
     def add_loss_op(self, seq2seq_output, output, mel, linear):
-        tf.summary.scalar('max_batch_seq_len', tf.shape(output)[1])
-        output = tf.pad(output,
-                [[0,0], [0, tf.shape(linear)[1] - tf.shape(output)[1]], [0,0]])
-        seq2seq_output = tf.pad(seq2seq_output,
-                [[0,0], [0, tf.shape(linear)[1] - tf.shape(seq2seq_output)[1]], [0,0]])
-
+        # total loss is equal weighting of seq2seq and output losses
         seq2seq_loss = tf.reduce_sum(tf.abs(seq2seq_output - mel))
         output_loss = tf.reduce_sum(tf.abs(output - linear))
         loss = seq2seq_loss + output_loss
+
         tf.summary.scalar('seq2seq loss', seq2seq_loss)
         tf.summary.scalar('output loss', output_loss)
         tf.summary.scalar('loss', loss)
         return loss
 
     def add_train_op(self, loss):
+        self.global_step = tf.Variable(0, name='global_step', trainable=False)
+
         opt = tf.train.AdamOptimizer(learning_rate=self.config.lr)
+
         gradients, variables = zip(*opt.compute_gradients(loss))
+        # save selected gradient summaries
         for grad in gradients:
             if 'BasicDecoder' in grad.name or 'gru_cell' in grad.name or 'highway_3' in grad.name:
                 tf.summary.scalar(grad.name, tf.reduce_sum(grad))
 
         # optionally cap and noise gradients to regularize
-        if self.config.cap_grads:
+        if self.config.cap_grads > 0:
             with tf.variable_scope('cap_grads'):
                 tf.summary.scalar('global_gradient_norm', tf.global_norm(gradients))
                 gradients, _ = tf.clip_by_global_norm(gradients, self.config.cap_grads)
 
-        self.global_step = tf.Variable(0, name='global_step', trainable=False)
-
-        # skip update if its too big
-        #train_op = tf.cond(gn < self.config.cap_grads,
-                #lambda: opt.apply_gradients(zip(grads, variables), global_step=self.global_step),
-                #lambda: tf.no_op())
         train_op = opt.apply_gradients(zip(gradients, variables), global_step=self.global_step)
         return train_op
 
@@ -158,25 +160,3 @@ class Tacotron(object):
             self.train_op = self.add_train_op(self.loss)
         self.merged = tf.summary.merge_all()
 
-
-if __name__ == '__main__':
-    # tests
-    with tf.Session() as sess:
-        text = tf.ones([32, 129], dtype=tf.int32)
-        sl = tf.ones([32], dtype=tf.int32)*50
-
-        mel = tf.random_normal([32, 193, 80])
-        stft = tf.random_normal([32, 193, 1025])
-        mel_sl = tf.concat(
-                [tf.ones([16], dtype=tf.int32)*192, tf.ones([16], dtype=tf.int32)*50],
-                axis=0)
-
-        config = Config()
-        config.vocab_size = 100
-        inputs = {'text': text, 'text_length': sl, 'mel': mel, 'stft': stft, 'speech_length': mel_sl}
-        model = Tacotron(config, inputs)
-
-        tf.global_variables_initializer().run()
-        loss = sess.run(model.loss)
-        print(loss)
-        

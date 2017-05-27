@@ -21,12 +21,7 @@ def test(model, config, prompt_file):
         batch_inputs, config.num_prompts = data_input.load_prompts(prompt_file, ivocab)
 
     with tf.Session() as sess:
-        inputs, stft_mean, stft_std = data_input.load_from_npy(config.data_path)
-
-        #batch_inputs = data_input.build_dataset(sess, inputs)
-
-        #with tf.device('/cpu:0'):
-            #queue, batch_inputs = data_input.build_queue(sess, inputs)
+        stft_mean, stft_std = np.load(config.data_path + 'stft_mean'), np.load(config.data_path + 'stft_std')
 
         # initialize model
         model = model(config, batch_inputs, train=False)
@@ -72,23 +67,14 @@ def test(model, config, prompt_file):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('prompts')
-    parser.add_argument('-m', '--model', default='tacotron')
-    parser.add_argument('-t', '--train-set', default='arctic')
+    parser.add_argument('-t', '--train-set', default='nancy')
     args = parser.parse_args()
 
-    if args.model == 'tacotron':
-        from models.tacotron import Tacotron, Config
-        model = Tacotron
-        config = Config()
-        config.data_path = 'data/%s/' % args.train_set
-        config.save_path = args.train_set + '/tacotron'
-        print('Buliding Tacotron')
-    else:
-        from models.vanilla_seq2seq import Vanilla_Seq2Seq, Config
-        model = Vanilla_Seq2Seq
-        config = Config()
-        config.data_path = 'data/%s/' % args.train_set
-        config.save_path = args.train_set + '/vanilla_seq2seq'
-        print('Buliding Vanilla_Seq2Seq')
+    from models.tacotron import Tacotron, Config
+    model = Tacotron
+    config = Config()
+    config.data_path = 'data/%s/' % args.train_set
+    config.save_path = args.train_set + '/tacotron'
+    print('Buliding Tacotron')
 
     test(model, config, args.prompts)

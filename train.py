@@ -14,13 +14,12 @@ SAVE_EVERY = 5000
 RESTORE_FROM = None
 restore = False
 
-def train(model, config, num_steps=100000):
+def train(model, config, num_steps=1000000):
 
     meta = data_input.load_meta(config.data_path)
     assert config.r == meta['r']
     ivocab = meta['vocab']
     config.vocab_size = len(ivocab)
-
 
     with tf.Session() as sess:
 
@@ -60,8 +59,7 @@ def train(model, config, num_steps=100000):
                 batch_inputs
             ])
             _, global_step, loss, output, summary, inputs = out
-            if np.isnan(loss):
-                print(inputs)
+            if loss > 1e8 and global_step > 500: break
             train_writer.add_summary(summary, global_step)
 
             if global_step % SAVE_EVERY == 0 and global_step != 0:
@@ -89,31 +87,19 @@ def train(model, config, num_steps=100000):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--model', default='tacotron')
-    parser.add_argument('-t', '--train-set', default='arctic')
+    parser.add_argument('-t', '--train-set', default='nancy')
     parser.add_argument('-d', '--debug', type=int, default=0)
     parser.add_argument('-r', '--restore', type=int, default=0)
     args = parser.parse_args()
 
-    if args.model == 'tacotron':
-        from models.tacotron import Tacotron, Config
-        model = Tacotron
-        config = Config()
-        config.data_path = 'data/%s/' % args.train_set
-        if args.debug: 
-            config.save_path = 'debug'
-        else:
-            config.save_path = args.train_set + '/tacotron'
-        print('Buliding Tacotron')
+    from models.tacotron import Tacotron, Config
+    model = Tacotron
+    config = Config()
+    config.data_path = 'data/%s/' % args.train_set
+    if args.debug: 
+        config.save_path = 'debug'
     else:
-        from models.vanilla_seq2seq import Vanilla_Seq2Seq, Config
-        model = Vanilla_Seq2Seq
-        config = Config()
-        config.data_path = 'data/%s/' % args.train_set
-        if args.debug: 
-            config.save_path = 'debug'
-        else:
-            config.save_path = args.train_set + '/vanilla_seq2seq'
-        print('Buliding Vanilla_Seq2Seq')
+        config.save_path = args.train_set + '/tacotron'
+    print('Buliding Tacotron')
 
     train(model, config)

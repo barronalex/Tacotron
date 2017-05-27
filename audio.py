@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 
 import librosa
 import numpy as np
@@ -39,9 +40,6 @@ def process_wav(fname, n_fft=2048, win_length=1200, hop_length=300, sr=16000):
 
     pre_emphasis = 0.97
     wave = np.append(wave[0], wave[1:] - pre_emphasis * wave[:-1])
-
-    # trim leading/trailing silence 
-    wave = librosa.effects.trim(wave)
 
     stft = librosa.stft(wave, n_fft=n_fft, win_length=win_length, hop_length=hop_length)
     mel = librosa.feature.melspectrogram(S=stft, n_mels=80)

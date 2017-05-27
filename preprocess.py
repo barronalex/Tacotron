@@ -3,9 +3,9 @@ from __future__ import division
 
 import tensorflow as tf
 import numpy as np
+import pandas as pd
 import os
 import glob
-import pandas as pd
 import pickle as pkl
 from tqdm import tqdm
 import sys
@@ -14,12 +14,13 @@ import string
 import audio
 import argparse
 
-
 mini = False
 DATA_DIR = 'data/'
 
 vocab = {}
 ivocab = {}
+vocab['<pad>'] = 0
+ivocab[0] = '<pad>'
 
 def process_char(char):
     if not char in vocab:
@@ -27,30 +28,6 @@ def process_char(char):
         vocab[char] = next_index
         ivocab[next_index] = char
     return vocab[char]
-
-def make_sequence_example(stft, mel, text, speaker):
-    sequence = tf.train.SequenceExample()
-
-    sequence.context.feature['speech_length'].int64_list.value.append(mel.shape[0])
-    sequence.context.feature['text_length'].int64_list.value.append(len(text))
-    sequence.context.feature['speaker'].int64_list.value.append(int(speaker))
-
-    stft = stft.flatten()
-    mel = mel.flatten()
-
-    mel_feature = sequence.feature_lists.feature_list["mel"]
-    stft_feature = sequence.feature_lists.feature_list["stft"]
-
-    for s in stft:
-        stft_feature.feature.add().float_list.value.append(s)
-
-    for m in mel:
-        mel_feature.feature.add().float_list.value.append(m)
-
-    for c in text:
-        text_feature.feature.add().int64_list.value.append(c)
-
-    return sequence
 
 def pad_to_dense(inputs):
     max_len = max(r.shape[0] for r in inputs)
@@ -65,6 +42,11 @@ def pad_to_dense(inputs):
 
 def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename):
     texts, mels, stfts = pad_to_dense(texts), pad_to_dense(mels), pad_to_dense(stfts)
+
+    stft_mean = np.mean(stft, axis=(0,1))
+    stft_std = np.std(stft, axis=(0,1))
+    np.save('data/' + filename + '/stft_mean', stft_mean)
+    np.save('data/' + filename + '/stft_std', stft_std)
 
     text_lens, speech_lens = np.array(text_lens), np.array(speech_lens)
 
@@ -238,18 +220,15 @@ def preprocess_vctk():
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset', type=str, help='Provide either "arctic" or "blizzard"')
+    parser.add_argument('--dataset', '-d', type=str, default='all')
     args = parser.parse_args()
 
-    if args.dataset == 'arctic':
+    do_all = args.dataset == 'all'
+
+    if args.dataset == 'arctic' or do_all:
         preprocess_arctic()
-    elif args.dataset == 'blizzard':
+    elif args.dataset == 'blizzard' or do_all:
         preprocess_blizzard()
-    elif args.dataset == 'nancy':
+    elif args.dataset == 'nancy' or do_all:
         preprocess_nancy()
-    #preprocess_vctk()
-
-
-
-
 
