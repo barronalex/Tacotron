@@ -38,10 +38,8 @@ Finally, create a text file containing the prompts you want to synthesize
 
 	python3 test.py prompts.txt
 
-On my GTX 1080, it takes about 5 hours to get to the point where synthesized speech on the training set is discernable and around 20 hours to obtain audible generalization at test time. Despite fairly agressive gradient clipping, the loss is prone to explosion. In that case try restarting from the most recent checkpoint (using the restore flag) with a slightly lowered learning rate. I'm working on improving this problem.
-
 To see the audio outputs created by Tacotron, open up Tensorboard.
 
-## Work To Do
+On my GTX 1080, it takes about 5 hours to get to the point where synthesized speech on the training set is discernable and around 20 hours to obtain audible generalization at test time. Despite fairly agressive gradient clipping, the loss is prone to explosion. In that case try restarting from the most recent checkpoint (using the restore flag) with a slightly lowered learning rate. I'm working on improving this problem.
 
-Train for longer, 
+
