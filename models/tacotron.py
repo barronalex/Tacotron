@@ -45,6 +45,7 @@ class Tacotron(object):
                 encoded,
                 memory_sequence_length=inputs['text_length']
         )
+
         decoder_cell = OutputProjectionWrapper(
                 InputProjectionWrapper(
                     ResidualWrapper(

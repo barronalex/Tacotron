@@ -9,13 +9,14 @@ n_fft = 2048
 win_length = 1200
 hop_length = int(win_length/4)
 
+# NOTE: If you change the decoder output width r, make sure to rerun preprocess.py.
+# it stores the arrays in a different format based on this value
 r = 5
 
 # To allow the decoder to output multiple non-overlapping frames at each time step
 # we need to reshape the frames so that they appear in non-overlapping chunks
 # of length r
 # we then reshape these frames back to the normal overlapping representation to be outputted
-# NOTE: the output of this function is always (num_frames, num_filters)
 def reshape_frames(signal, forward=True):
     if forward:
         pad_length = signal.shape[1] % (4*r)

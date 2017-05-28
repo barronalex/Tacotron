@@ -12,7 +12,6 @@ import audio
 
 SAVE_EVERY = 5000
 RESTORE_FROM = None
-restore = True
 
 def train(model, config, num_steps=1000000):
 
@@ -38,7 +37,7 @@ def train(model, config, num_steps=1000000):
 
         saver = tf.train.Saver(max_to_keep=3, keep_checkpoint_every_n_hours=3)
 
-        if restore:
+        if config.restore:
             print('restoring weights')
             latest_ckpt = tf.train.latest_checkpoint(
                 'weights/' + config.save_path[:config.save_path.rfind('/')]
@@ -94,14 +93,15 @@ def train(model, config, num_steps=1000000):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--train-set', default='nancy')
-    parser.add_argument('-d', '--debug', type=int, default=0)
-    parser.add_argument('-r', '--restore', type=int, default=0)
+    parser.add_argument('-d', '--debug', type=bool, default=False)
+    parser.add_argument('-r', '--restore', type=bool, default=False)
     args = parser.parse_args()
 
     from models.tacotron import Tacotron, Config
     model = Tacotron
     config = Config()
     config.data_path = 'data/%s/' % args.train_set
+    config.restore = args.restore
     if args.debug: 
         config.save_path = 'debug'
     else:

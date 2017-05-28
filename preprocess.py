@@ -3,7 +3,6 @@ from __future__ import division
 
 import tensorflow as tf
 import numpy as np
-import pandas as pd
 import os
 import glob
 import pickle as pkl
@@ -21,6 +20,18 @@ vocab = {}
 ivocab = {}
 vocab['<pad>'] = 0
 ivocab[0] = '<pad>'
+
+def save_vocab(name):
+    global vocab
+    global ivocab
+    print('saving vocab')
+    with open('data/%s/meta.pkl' % name, 'wb') as vf:
+        pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
+
+    vocab = {}
+    ivocab = {}
+    vocab['<pad>'] = 0
+    ivocab[0] = '<pad>'
 
 def process_char(char):
     if not char in vocab:
@@ -43,8 +54,8 @@ def pad_to_dense(inputs):
 def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename):
     texts, mels, stfts = pad_to_dense(texts), pad_to_dense(mels), pad_to_dense(stfts)
 
-    stft_mean = np.mean(stft, axis=(0,1))
-    stft_std = np.std(stft, axis=(0,1))
+    stft_mean = np.mean(stfts, axis=(0,1))
+    stft_std = np.std(stfts, axis=(0,1))
     np.save('data/' + filename + '/stft_mean', stft_mean)
     np.save('data/' + filename + '/stft_std', stft_std)
 
@@ -97,10 +108,7 @@ def preprocess_blizzard():
 
     save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'blizzard')
 
-    # save vocabulary
-    print('saving vocab')
-    with open(DATA_DIR + 'blizzard/meta.pkl', 'wb') as vf:
-        pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
+    save_vocab('blizzard')
 
 def preprocess_nancy():
 
@@ -135,9 +143,7 @@ def preprocess_nancy():
     save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'nancy')
 
     # save vocabulary
-    print('saving vocab')
-    with open(DATA_DIR + 'nancy/meta.pkl', 'wb') as vf:
-        pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
+    save_vocab('nancy')
 
 def preprocess_arctic():
     proto_file = DATA_DIR + 'arctic/train.proto'
@@ -171,12 +177,11 @@ def preprocess_arctic():
     save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'arctic')
 
     # save vocabulary
-    print('saving vocab')
-    with open(DATA_DIR + 'arctic/meta.pkl', 'wb') as vf:
-        pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
+    save_vocab('arctic')
 
 def preprocess_vctk():
     # adapted from https://github.com/buriburisuri/speech-to-text-wavenet/blob/master/preprocess.py
+    import pandas as pd
 
     if mini:
         proto_file = DATA_DIR + 'VCTK-Corpus/mini_train.proto'
@@ -219,16 +224,12 @@ def preprocess_vctk():
 
 if __name__ == '__main__':
 
+    # not used for now
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', '-d', type=str, default='all')
     args = parser.parse_args()
 
-    do_all = args.dataset == 'all'
+    preprocess_arctic()
+    preprocess_nancy()
 
-    if args.dataset == 'arctic' or do_all:
-        preprocess_arctic()
-    elif args.dataset == 'blizzard' or do_all:
-        preprocess_blizzard()
-    elif args.dataset == 'nancy' or do_all:
-        preprocess_nancy()
 
