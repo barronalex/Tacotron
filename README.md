@@ -2,12 +2,16 @@
 
 Implementation of [Tacotron](https://arxiv.org/abs/1703.10135), an end-to-end neural network for speech synthesis.
 
-Output is still pretty rough around the edges but you can make out words on new inputs and it should get better with more training, tuning and data.
+[Preliminary Sample](https://soundcloud.com/alex-barron-440014733/hello-how-are-you-doing-alex)
+
+As you can hear output is pretty rough around the edges but you can make out words on new inputs and it should get better with more training, tuning and data.
 
 ## Requirements
 
 [Tensorflow 1.2](https://www.tensorflow.org/versions/r1.2/install/)
+
 [Librosa](https://github.com/librosa/librosa)
+
 [tqdm](https://github.com/noamraph/tqdm)
 
 ## Data
