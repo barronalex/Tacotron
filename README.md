@@ -2,7 +2,7 @@
 
 Implementation of [Tacotron](https://arxiv.org/abs/1703.10135), an end-to-end neural network for speech synthesis.
 
-[Preliminary Sample](https://soundcloud.com/alex-barron-440014733/hello-how-are-you-doing-alex)
+[Preliminary Sample](https://soundcloud.com/alex-barron-440014733/it-would-be-amazing-if-i-could-talk)
 
 As you can hear output is pretty rough around the edges but you can make out words on new inputs such as the one above and it should get better with more training, tuning and data.
 
