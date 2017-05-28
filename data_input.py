@@ -73,7 +73,7 @@ def load_prompts(prompt_file, ivocab):
         lines = pf.readlines() 
         text = [[vocab[w] for w in l.strip()] for l in lines]
         text_length = np.array([len(l) for l in lines])
-        text = pad(text, np.max(text_length), vocab[' '])
+        text = pad(text, np.max(text_length), 0)
         
         inputs = tf.train.slice_input_producer([text, text_length], num_epochs=1)
         inputs = {'text': inputs[0], 'text_length': inputs[1]}

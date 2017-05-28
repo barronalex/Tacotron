@@ -21,7 +21,8 @@ def test(model, config, prompt_file):
         batch_inputs, config.num_prompts = data_input.load_prompts(prompt_file, ivocab)
 
     with tf.Session() as sess:
-        stft_mean, stft_std = np.load(config.data_path + 'stft_mean'), np.load(config.data_path + 'stft_std')
+        stft_mean, stft_std = \
+                np.load(config.data_path + 'stft_mean.npy'), np.load(config.data_path + 'stft_std.npy')
 
         # initialize model
         model = model(config, batch_inputs, train=False)
