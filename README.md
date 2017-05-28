@@ -4,7 +4,7 @@ Implementation of [Tacotron](https://arxiv.org/abs/1703.10135), an end-to-end ne
 
 [Preliminary Sample](https://soundcloud.com/alex-barron-440014733/it-would-be-amazing-if-i-could-talk)
 
-As you can hear output is pretty rough around the edges but you can make out words on new inputs such as the one above and it should get better with more training, tuning and data.
+As you can hear, output is pretty rough around the edges but you can make out words on new inputs such as the one above and it should get better with more training, tuning and data.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ We also download the considerably smaller [CMU ARCTIC](http://festvox.org/cmu_ar
 
 First run the data fetching script (preferably after obtaining a username and password for the Nancy corpus)
 
-	download_data.sh
+	bash download_data.sh
 
 Then preprocess the data
 
