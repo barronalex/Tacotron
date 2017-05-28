@@ -15,16 +15,17 @@ class Config(object):
     decoder_units = 256
     mel_features = 80
     embed_dim = 256
-
     fft_size = 1025
+    dropout_prob = 0.5
 
     r = 5
-    dropout_prob = 0.5
+
     cap_grads = 10
 
-    lr = 0.0005
-    batch_size = 32
+    init_lr = 0.0005
+    annealing_rate = 1
 
+    batch_size = 32
 
 class Tacotron(object):
     # transformation applied to input character sequence
@@ -135,7 +136,7 @@ class Tacotron(object):
     def add_train_op(self, loss):
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
 
-        opt = tf.train.AdamOptimizer(learning_rate=self.config.lr)
+        opt = tf.train.AdamOptimizer(learning_rate=self.lr)
 
         gradients, variables = zip(*opt.compute_gradients(loss))
         # save selected gradient summaries
@@ -154,6 +155,7 @@ class Tacotron(object):
 
     def __init__(self, config, inputs, train=True):
         self.config = config
+        self.lr = tf.placeholder(tf.float32)
         self.seq2seq_output, self.output = self.inference(inputs, train)
         if train:
             self.loss = self.add_loss_op(self.seq2seq_output, self.output, inputs['mel'], inputs['stft'])

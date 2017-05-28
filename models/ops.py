@@ -5,6 +5,7 @@ from tensorflow.contrib.rnn import *
 class InferenceHelper(CustomHelper):
 
     def _initialize_fn(self):
+        # we always reconstruct the whole output
         finished = tf.tile([False], [self._batch_size])
         next_inputs = tf.zeros([self._batch_size, self._out_size], dtype=tf.float32)
         return (finished, next_inputs)
@@ -15,7 +16,6 @@ class InferenceHelper(CustomHelper):
 
     def _next_inputs_fn(self, time, outputs, state, sample_ids):
         del time, sample_ids
-        # TODO find a sensible way to figure out when we're finished decoding
         finished = tf.tile([False], [self._batch_size])
         next_inputs = outputs
         return (finished, next_inputs, state)

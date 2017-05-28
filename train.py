@@ -12,7 +12,7 @@ import audio
 
 SAVE_EVERY = 5000
 RESTORE_FROM = None
-restore = False
+restore = True
 
 def train(model, config, num_steps=1000000):
 
@@ -36,7 +36,7 @@ def train(model, config, num_steps=1000000):
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-        saver = tf.train.Saver(max_to_keep=3)
+        saver = tf.train.Saver(max_to_keep=3, keep_checkpoint_every_n_hours=3)
 
         if restore:
             print('restoring weights')
@@ -48,6 +48,8 @@ def train(model, config, num_steps=1000000):
             else:
                 saver.restore(sess, 'weights/' + config.save_path + '-' + str(RESTORE_FROM))
 
+        lr = model.config.init_lr
+        annealing_rate = model.config.annealing_rate
         
         for _ in tqdm(range(num_steps)):
             out = sess.run([
@@ -57,10 +59,15 @@ def train(model, config, num_steps=1000000):
                 model.output,
                 model.merged,
                 batch_inputs
-            ])
+                ], feed_dict={model.lr: lr})
             _, global_step, loss, output, summary, inputs = out
-            if loss > 1e8 and global_step > 500: break
             train_writer.add_summary(summary, global_step)
+
+            # detect gradient explosion
+            if loss > 1e8 and global_step > 500: break
+
+            if global_step % 1000 == 0:
+                lr *= annealing_rate
 
             if global_step % SAVE_EVERY == 0 and global_step != 0:
                 print('saving weights')
@@ -81,7 +88,6 @@ def train(model, config, num_steps=1000000):
                 ))
                 train_writer.add_summary(merged, global_step)
 
-        sess.run(queue.close(cancel_pending_enqueues=True))
         coord.request_stop()
         coord.join(threads)
 
