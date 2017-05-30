@@ -22,7 +22,7 @@ class Config(object):
 
     cap_grads = 10
 
-    init_lr = 0.0005
+    init_lr = 0.0001
     annealing_rate = 1
 
     batch_size = 32

@@ -71,9 +71,9 @@ def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename):
 
 def preprocess_blizzard():
 
-    num_examples = 9733
-    blizz_dir = DATA_DIR + 'blizzard/train/segmented/' 
-    txt_file = blizz_dir + 'prompts.gui'
+    num_examples = 32937
+    blizz_dir = DATA_DIR + 'blizzard/train/unsegmented/' 
+    txt_file = blizz_dir + 'prompts.data'
 
     # pad out all these jagged arrays and store them in an h5py file
     texts = []
@@ -83,15 +83,8 @@ def preprocess_blizzard():
     speech_lens = []
 
     with open(txt_file, 'r') as ttf:
-        for step in tqdm(range(num_examples)):
-            id = ttf.readline().strip()
-            text = ttf.readline()
-            if not text: break
-            # ugly but readable and the performance is fine
-            text = text.replace('@ ', '').replace('| ', '').replace('# ', '') 
-            text = text.replace(' ,', ',').replace(' ;', ';').replace(' :', ':')
-            text = text.replace(' .', '.').strip()
-            text = [process_char(c) for c in list(text)]
+        for line in tqdm(txt_file):
+            audio, prompt = line.split('||')
 
             # now load wav file
             wav_file = blizz_dir + 'wavn/' + id + '.wav'
@@ -214,11 +207,7 @@ def preprocess_vctk():
                 #TODO possibly normalize text here?
             
             speaker = f[1:4]
-            if mini and i > 9: break
-            if speaker != '225': break
 
-            sequence = make_sequence_example(stft, mel, text, speaker)
-            writer.write(sequence.SerializeToString())
         writer.close()
 
 
