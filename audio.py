@@ -45,8 +45,8 @@ def process_wav(fname, n_fft=2048, win_length=1200, hop_length=300, sr=16000):
     stft = librosa.stft(wave, n_fft=n_fft, win_length=win_length, hop_length=hop_length)
     mel = librosa.feature.melspectrogram(S=stft, n_mels=80)
 
-    stft = np.log(np.abs(stft))
-    mel = np.log(np.abs(mel))
+    stft = librosa.core.logamplitude(stft)
+    mel = librosa.core.logamplitude(mel)
 
     stft = reshape_frames(stft)
     mel = reshape_frames(mel)
@@ -86,27 +86,13 @@ def griffinlim(spectrogram, n_iter = 50, window = 'hann', n_fft = 2048, win_leng
 
 if __name__ == '__main__':
     # simple tests
-    fname = 'data/VCTK-Corpus/wav48/p225/p225_004.wav'
+    fname = 'data/blizzard/train/unsegmented/jane_austen/mansfield_park/wavn/chap_33_seg_45.wav'
     mel, stft = process_wav(fname)
 
-    print(stft.shape)
-    mean = np.mean(stft, axis=0)
-    print(mean.shape)
+    stft16 = np.array(stft, dtype=np.float16)
 
-    print(mean)
-    news = stft - mean
-
-    print(np.sum(np.abs(news - stft)))
-
-    print(np.sum(mean))
-
-    olds = news + mean
-
-    print('might be zero')
-    print(np.sum(np.abs(olds - stft)))
-    print(np.sum(np.abs(news - olds)))
-
-    invert_spectrogram(stft, 'test_inv.wav')
+    invert_spectrogram(stft16, out_fn='test_inv16.wav')
+    invert_spectrogram(stft, out_fn='test_inv32.wav')
 
     test = np.repeat(np.arange(36)[:, None] + 1, 7, axis=1)
     out = reshape_frames(test.T)

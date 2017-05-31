@@ -29,21 +29,31 @@ def build_dataset(sess, inputs):
             print(name, inp)
 
         sess.run(iterator.initializer, feed_dict=dict(zip(placeholders, inputs)))
+        batch_inputs['stft'] = tf.cast(batch_inputs['stft'], tf.float32)
+        batch_inputs['mel'] = tf.cast(batch_inputs['mel'], tf.float32)
 
     return batch_inputs
 
 def load_from_npy(dirname):
     text = np.load(dirname + 'texts.npy')
     text_length = np.load(dirname + 'text_lens.npy')
+    print('loading stft')
     stft = np.load(dirname + 'stfts.npy')
+    print('loading mel')
     mel = np.load(dirname + 'mels.npy')
     speech_length = np.load(dirname + 'speech_lens.npy')
 
+    print('normalizing')
     # normalize
-    stft_mean = np.mean(stft, axis=(0,1))
-    mel_mean = np.mean(mel, axis=(0,1))
-    stft_std = np.std(stft, axis=(0,1))
-    mel_std = np.std(mel, axis=(0,1))
+    # take a sample to avoid memory errors
+    index = np.random.randint(len(stft), size=1000)
+    stft_mean = np.mean(stft[index], axis=(0,1))
+    mel_mean = np.mean(mel[index], axis=(0,1))
+    stft_std = np.std(stft[index], axis=(0,1))
+    mel_std = np.std(mel[index], axis=(0,1))
+
+    np.save(dirname + 'stft_mean', stft_mean)
+    np.save(dirname + 'stft_std', stft_std)
 
     stft -= stft_mean
     mel -= mel_mean

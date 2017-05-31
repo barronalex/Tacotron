@@ -51,13 +51,10 @@ def pad_to_dense(inputs):
     padded = np.stack(padded)
     return padded
 
-def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename):
-    texts, mels, stfts = pad_to_dense(texts), pad_to_dense(mels), pad_to_dense(stfts)
-
-    stft_mean = np.mean(stfts, axis=(0,1))
-    stft_std = np.std(stfts, axis=(0,1))
-    np.save('data/' + filename + '/stft_mean', stft_mean)
-    np.save('data/' + filename + '/stft_std', stft_std)
+def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename, pad=True):
+    if pad:
+        mels, stfts = pad_to_dense(mels), pad_to_dense(stfts)
+    texts = pad_to_dense(texts)
 
     text_lens, speech_lens = np.array(text_lens), np.array(speech_lens)
 
@@ -71,35 +68,44 @@ def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename):
 
 def preprocess_blizzard():
 
-    num_examples = 32937
+    num_to_keep = 20000
+    max_len = 70
     blizz_dir = DATA_DIR + 'blizzard/train/unsegmented/' 
     txt_file = blizz_dir + 'prompts.data'
 
     # pad out all these jagged arrays and store them in an h5py file
     texts = []
     text_lens = []
-    mels = []
-    stfts = []
     speech_lens = []
 
+    # we precreate these to save memory
+    # at least with Griffin Lim, half precision doesn't seem to affect audio quality at all
+    stfts = np.zeros((num_to_keep, max_len, 1025*audio.r))
+    mels = np.zeros((num_to_keep, max_len, 80*audio.r))
+
+    count = 0
     with open(txt_file, 'r') as ttf:
-        for line in tqdm(txt_file):
-            audio, prompt = line.split('||')
+        for line in tqdm(ttf, total=num_to_keep):
+            if count == num_to_keep: break
+
+            wav_file, text = line.split('||')
+            text = [process_char(c) for c in list(text)]
 
             # now load wav file
-            wav_file = blizz_dir + 'wavn/' + id + '.wav'
-            mel, stft = audio.process_wav(wav_file, sr=16000)
-            if mel.shape[0] < 70:
+            wav_file = blizz_dir + wav_file
+            mel, stft = audio.process_wav(wav_file, sr=24000)
+            if mel.shape[0] <= max_len and not np.isinf(np.sum(mel)):
                 texts.append(np.array(text))
                 text_lens.append(len(text))
-                mels.append(mel)
-                stfts.append(stft)
+                
+                mels[count] = np.pad(mel, ((0, max_len - mel.shape[0]),(0,0)), 'constant', constant_values=0)
+
+                stfts[count] = np.pad(stft, ((0, max_len - stft.shape[0]),(0,0)), 'constant', constant_values=0)
                 speech_lens.append(mel.shape[0])
 
-            # skip over weird phoneme deconstruction
-            if not ttf.readline(): break
-
-    save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'blizzard')
+                count += 1
+            
+    save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'blizzard', pad=False)
 
     save_vocab('blizzard')
 
@@ -218,7 +224,8 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', '-d', type=str, default='all')
     args = parser.parse_args()
 
-    preprocess_arctic()
-    preprocess_nancy()
+    #preprocess_arctic()
+    #preprocess_nancy()
+    preprocess_blizzard()
 
 
