@@ -216,7 +216,6 @@ def preprocess_vctk():
 
         writer.close()
 
-
 if __name__ == '__main__':
 
     # not used for now

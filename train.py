@@ -10,7 +10,7 @@ import argparse
 
 import audio
 
-SAVE_EVERY = 50
+SAVE_EVERY = 100
 RESTORE_FROM = None
 
 def train(model, config, num_steps=1000000):
