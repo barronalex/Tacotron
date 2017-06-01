@@ -10,7 +10,7 @@ import argparse
 
 import audio
 
-SAVE_EVERY = 100
+SAVE_EVERY = 5000
 RESTORE_FROM = None
 
 def train(model, config, num_steps=1000000):
@@ -84,8 +84,8 @@ def train(model, config, num_steps=1000000):
                 ideal = audio.invert_spectrogram(inputs['stft'][17])
                 sample = audio.invert_spectrogram(output[17])
                 merged = sess.run(tf.summary.merge(
-                    [tf.summary.audio('ideal{}'.format(global_step), ideal[None, :], 24000),
-                     tf.summary.audio('sample{}'.format(global_step), sample[None, :], 24000)]
+                    [tf.summary.audio('ideal', ideal[None, :], 24000),
+                     tf.summary.audio('sample', sample[None, :], 24000)]
                 ))
                 train_writer.add_summary(merged, global_step)
 

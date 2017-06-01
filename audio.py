@@ -45,8 +45,8 @@ def process_wav(fname, n_fft=2048, win_length=1200, hop_length=300, sr=16000):
     stft = librosa.stft(wave, n_fft=n_fft, win_length=win_length, hop_length=hop_length)
     mel = librosa.feature.melspectrogram(S=stft, n_mels=80)
 
-    stft = librosa.core.logamplitude(stft)
-    mel = librosa.core.logamplitude(mel)
+    stft = np.log(np.abs(stft))
+    mel = np.log(np.abs(mel))
 
     stft = reshape_frames(stft)
     mel = reshape_frames(mel)

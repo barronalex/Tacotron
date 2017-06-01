@@ -68,7 +68,7 @@ def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename, pad=True):
 
 def preprocess_blizzard():
 
-    num_to_keep = 20000
+    num_to_keep = 30874
     max_len = 70
     blizz_dir = DATA_DIR + 'blizzard/train/unsegmented/' 
     txt_file = blizz_dir + 'prompts.data'
@@ -80,8 +80,8 @@ def preprocess_blizzard():
 
     # we precreate these to save memory
     # at least with Griffin Lim, half precision doesn't seem to affect audio quality at all
-    stfts = np.zeros((num_to_keep, max_len, 1025*audio.r))
-    mels = np.zeros((num_to_keep, max_len, 80*audio.r))
+    stfts = np.zeros((num_to_keep, max_len, 1025*audio.r), dtype=np.float16)
+    mels = np.zeros((num_to_keep, max_len, 80*audio.r), dtype=np.float16)
 
     count = 0
     with open(txt_file, 'r') as ttf:
@@ -97,10 +97,10 @@ def preprocess_blizzard():
             if mel.shape[0] <= max_len and not np.isinf(np.sum(mel)):
                 texts.append(np.array(text))
                 text_lens.append(len(text))
-                
-                mels[count] = np.pad(mel, ((0, max_len - mel.shape[0]),(0,0)), 'constant', constant_values=0)
 
+                mels[count] = np.pad(mel, ((0, max_len - mel.shape[0]),(0,0)), 'constant', constant_values=0)
                 stfts[count] = np.pad(stft, ((0, max_len - stft.shape[0]),(0,0)), 'constant', constant_values=0)
+
                 speech_lens.append(mel.shape[0])
 
                 count += 1

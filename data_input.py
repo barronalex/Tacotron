@@ -46,15 +46,12 @@ def load_from_npy(dirname):
     print('normalizing')
     # normalize
     # take a sample to avoid memory errors
-    #index = np.random.randint(len(stft), size=10)
+    index = np.random.randint(len(stft), size=100)
 
-    sample = stft[:10]
-    print(sample.shape)
-    print('got sample')
-    stft_mean = np.mean(stft[:10], axis=(0,1))
-    mel_mean = np.mean(mel[:10], axis=(0,1))
-    stft_std = np.std(stft[:10], axis=(0,1))
-    mel_std = np.std(mel[:10], axis=(0,1))
+    stft_mean = np.mean(stft[index], axis=(0,1))
+    mel_mean = np.mean(mel[index], axis=(0,1))
+    stft_std = np.std(stft[index], axis=(0,1), dtype=np.float32)
+    mel_std = np.std(mel[index], axis=(0,1), dtype=np.float32)
 
     np.save(dirname + 'stft_mean', stft_mean)
     np.save(dirname + 'stft_std', stft_std)
