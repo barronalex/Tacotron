@@ -223,8 +223,8 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', '-d', type=str, default='all')
     args = parser.parse_args()
 
-    #preprocess_arctic()
-    #preprocess_nancy()
-    preprocess_blizzard()
+    preprocess_arctic()
+    preprocess_nancy()
+    #preprocess_blizzard()
 
 
