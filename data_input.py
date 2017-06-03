@@ -6,9 +6,14 @@ import numpy as np
 import pickle as pkl
 import os
 import sys
+import io
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 BATCH_SIZE = 32
-SHUFFLE_BUFFER_SIZE = 1000
+SHUFFLE_BUFFER_SIZE = 10000
 
 def build_dataset(sess, inputs):
     placeholders = []
@@ -98,4 +103,13 @@ def load_meta(data_path):
     with open('%s/meta.pkl' % data_path, 'rb') as vf:
         meta = pkl.load(vf)
     return meta
+
+def generate_attention_plot(alignments):
+    plt.imshow(alignments, cmap='hot', interpolation='nearest')
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plot = tf.image.decode_png(buf.getvalue(), channels=4)
+    plot = tf.expand_dims(plot, 0)
+    return plot
 

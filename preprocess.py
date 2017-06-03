@@ -21,12 +21,12 @@ ivocab = {}
 vocab['<pad>'] = 0
 ivocab[0] = '<pad>'
 
-def save_vocab(name):
+def save_vocab(name, sr=16000):
     global vocab
     global ivocab
     print('saving vocab')
     with open('data/%s/meta.pkl' % name, 'wb') as vf:
-        pkl.dump({'vocab': ivocab, 'r': audio.r}, vf)
+        pkl.dump({'vocab': ivocab, 'r': audio.r, 'sr': sr}, vf)
 
     vocab = {}
     ivocab = {}
@@ -107,7 +107,7 @@ def preprocess_blizzard():
             
     save_to_npy(texts, text_lens, mels, stfts, speech_lens, 'blizzard', pad=False)
 
-    save_vocab('blizzard')
+    save_vocab('blizzard', sr=24000)
 
 def preprocess_nancy():
 

@@ -15,6 +15,7 @@ RESTORE_FROM = None
 
 def train(model, config, num_steps=1000000):
 
+    sr = 24000 if 'blizzard' in config.data_path else 16000
     meta = data_input.load_meta(config.data_path)
     assert config.r == meta['r']
     ivocab = meta['vocab']
@@ -56,10 +57,12 @@ def train(model, config, num_steps=1000000):
                 model.global_step,
                 model.loss,
                 model.output,
+                model.alignments,
                 model.merged,
                 batch_inputs
                 ], feed_dict={model.lr: lr})
-            _, global_step, loss, output, summary, inputs = out
+            _, global_step, loss, output, alignments, summary, inputs = out
+
             train_writer.add_summary(summary, global_step)
 
             # detect gradient explosion
@@ -71,21 +74,22 @@ def train(model, config, num_steps=1000000):
                 lr *= annealing_rate
 
             if global_step % SAVE_EVERY == 0 and global_step != 0:
+
                 print('saving weights')
                 if not os.path.exists('weights/' + config.save_path):
                     os.makedirs('weights/' + config.save_path)
                 saver.save(sess, 'weights/' + config.save_path, global_step=global_step)
+
                 print('saving sample')
                 # store a sample to listen to
-                output *= stft_std
-                output += stft_mean
-                inputs['stft'] *= stft_std
-                inputs['stft'] += stft_mean
-                ideal = audio.invert_spectrogram(inputs['stft'][17])
-                sample = audio.invert_spectrogram(output[17])
+                ideal = audio.invert_spectrogram(inputs['stft'][0]*stft_std + stft_mean)
+                sample = audio.invert_spectrogram(output[0]*stft_std + stft_mean)
+                attention_plot = data_input.generate_attention_plot(alignments[0])
+                step = '_' + str(global_step)
                 merged = sess.run(tf.summary.merge(
-                    [tf.summary.audio('ideal', ideal[None, :], 24000),
-                     tf.summary.audio('sample', sample[None, :], 24000)]
+                    [tf.summary.audio('ideal' + step, ideal[None, :], sr),
+                     tf.summary.audio('sample' + step, sample[None, :], sr),
+                     tf.summary.image('attention' + step, attention_plot)]
                 ))
                 train_writer.add_summary(merged, global_step)
 

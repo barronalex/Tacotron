@@ -6,7 +6,6 @@ from tensorflow.contrib.rnn import *
 from tensorflow.contrib.seq2seq.python.ops \
         import attention_wrapper as wrapper, helper, basic_decoder, decoder
 import models.ops as ops
-
 import sys
 
 class Config(object):
@@ -20,7 +19,7 @@ class Config(object):
 
     r = 5
 
-    cap_grads = 10
+    cap_grads = 5
 
     init_lr = 0.0005
     annealing_rate = 1
@@ -66,6 +65,7 @@ class Tacotron(object):
                 attention_mech,
                 attention_layer_size=config.attention_units,
                 cell_input_fn=decoder_frame_input,
+                alignment_history=True,
                 output_attention=False
         )
 
@@ -104,8 +104,9 @@ class Tacotron(object):
         # pass through attention based decoder
         with tf.variable_scope('decoder'):
             dec = self.create_decoder(encoded, inputs, train)
-            (seq2seq_output, _), _, _ = \
+            (seq2seq_output, _), attention_state, _ = \
                     decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
+            self.alignments = tf.transpose(attention_state.alignment_history.stack(), [1,0,2])
             tf.summary.histogram('seq2seq_output', seq2seq_output)
 
         # use second CBHG module to process mel features into linear spectogram
