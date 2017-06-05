@@ -17,11 +17,13 @@ class Config(object):
     fft_size = 1025
     dropout_prob = 0.5
 
+    multi_gpu = False
+
     r = 5
 
     cap_grads = 5
 
-    init_lr = 0.0005
+    init_lr = 0.0003
     annealing_rate = 1
 
     batch_size = 32
@@ -45,10 +47,17 @@ class Tacotron(object):
                 memory_sequence_length=inputs['text_length']
         )
 
+        inner_cell = [GRUCell(config.decoder_units) for _ in range(3)]
+
+        if config.multi_gpu:
+            devices = ['/gpu:1', '/gpu:1', '/gpu:0']
+            inner_cell = [DeviceWrapper(c, d)
+                            for d, c in zip(device, inner_cell)]
+
         decoder_cell = OutputProjectionWrapper(
                 InputProjectionWrapper(
                     ResidualWrapper(
-                        MultiRNNCell([GRUCell(config.decoder_units) for _ in range(3)])
+                        MultiRNNCell(inner_cell)
                 ), config.decoder_units)
         , config.mel_features * config.r)
 

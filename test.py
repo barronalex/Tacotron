@@ -46,19 +46,20 @@ def test(model, config, prompt_file):
             while(True):
                 out = sess.run([
                     model.output,
+                    model.alignments,
                     batch_inputs
                 ])
-                outputs, inputs = out
+                outputs, alignments, inputs = out
 
                 print('saving samples')
-                for out, words in zip(outputs, inputs['text']):
+                for out, words, align in zip(outputs, inputs['text'], alignments):
                     # store a sample to listen to
                     text = ''.join([ivocab[w] for w in words])
-                    out *= stft_std
-                    out += stft_mean
-                    sample = audio.invert_spectrogram(out)
+                    attention_plot = data_input.generate_attention_plot(align)
+                    sample = audio.invert_spectrogram(out*stft_std + stft_mean)
                     merged = sess.run(tf.summary.merge(
-                         [tf.summary.audio(text, sample[None, :], 16000)]
+                         [tf.summary.audio(text, sample[None, :], 16000),
+                          tf.summary.image(text, attention_plot)]
                     ))
                     train_writer.add_summary(merged, 0)
         except tf.errors.OutOfRangeError:

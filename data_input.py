@@ -80,13 +80,13 @@ def load_from_npy(dirname):
 def pad(text, max_len, pad_val):
     return np.array(
         [np.pad(t, (0, max_len - len(t)), 'constant', constant_values=pad_val) for t in text]
-    )
+    , dtype=np.int32)
 
 def load_prompts(prompt_file, ivocab):
     vocab = {v: k for k,v in ivocab.items()}
     with open(prompt_file, 'r') as pf:
         lines = pf.readlines() 
-        text = [[vocab[w] for w in l.strip()] for l in lines]
+        text = [[vocab[w] for w in l.strip() if w in vocab] for l in lines]
         text_length = np.array([len(l) for l in lines])
         text = pad(text, np.max(text_length), 0)
         
@@ -100,12 +100,14 @@ def load_prompts(prompt_file, ivocab):
         return batches, len(lines)
         
 def load_meta(data_path):
-    with open('%s/meta.pkl' % data_path, 'rb') as vf:
+    with open('%smeta.pkl' % data_path, 'rb') as vf:
         meta = pkl.load(vf)
     return meta
 
 def generate_attention_plot(alignments):
     plt.imshow(alignments, cmap='hot', interpolation='nearest')
+    plt.ylabel('Decoder Steps')
+    plt.xlabel('Encoder Steps')
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     buf.seek(0)

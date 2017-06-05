@@ -1,4 +1,4 @@
-Generative adversarial network or variational auto-encoder.
-Basilar membrane and otolaryngology are not auto-correlations.
+Generative adversarial network or variational autoencoder.
+Basilar membrane and otolaryngology are not autocorrelations.
 He has read the whole thing.
 He reads books.
