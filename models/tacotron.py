@@ -7,9 +7,10 @@ from tensorflow.contrib.seq2seq.python.ops \
         import attention_wrapper as wrapper, helper, basic_decoder, decoder
 import models.ops as ops
 import sys
+import audio
 
 class Config(object):
-    max_decode_iter = 70
+    max_decode_iter = 350 // audio.r
     attention_units = 256
     decoder_units = 256
     mel_features = 80
@@ -17,13 +18,11 @@ class Config(object):
     fft_size = 1025
     dropout_prob = 0.5
 
-    multi_gpu = False
-
-    r = 5
+    scheduled_sample = 0
 
     cap_grads = 5
 
-    init_lr = 0.0003
+    init_lr = 0.0005
     annealing_rate = 1
 
     batch_size = 32
@@ -48,11 +47,6 @@ class Tacotron(object):
         )
 
         inner_cell = [GRUCell(config.decoder_units) for _ in range(3)]
-
-        if config.multi_gpu:
-            devices = ['/gpu:1', '/gpu:1', '/gpu:0']
-            inner_cell = [DeviceWrapper(c, d)
-                            for d, c in zip(device, inner_cell)]
 
         decoder_cell = OutputProjectionWrapper(
                 InputProjectionWrapper(
@@ -79,7 +73,11 @@ class Tacotron(object):
         )
 
         if train:
-            decoder_helper = helper.TrainingHelper(inputs['mel'], inputs['speech_length'])
+            if config.scheduled_sample:
+                decoder_helper = helper.ScheduledOutputTrainingHelper(
+                        inputs['mel'], inputs['speech_length'], config.scheduled_sample)
+            else:
+                decoder_helper = helper.TrainingHelper(inputs['mel'], inputs['speech_length'])
         else:
             decoder_helper = ops.InferenceHelper(
                     tf.shape(inputs['text'])[0],
@@ -151,9 +149,9 @@ class Tacotron(object):
 
         gradients, variables = zip(*opt.compute_gradients(loss))
         # save selected gradient summaries
-        for grad in gradients:
-            if 'BasicDecoder' in grad.name or 'gru_cell' in grad.name or 'highway_3' in grad.name:
-                tf.summary.scalar(grad.name, tf.reduce_sum(grad))
+        #for grad in gradients:
+            #if 'BasicDecoder' in grad.name or 'gru_cell' in grad.name or 'highway_3' in grad.name:
+                #tf.summary.scalar(grad.name, tf.reduce_sum(grad))
 
         # optionally cap and noise gradients to regularize
         if self.config.cap_grads > 0:

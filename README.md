@@ -2,9 +2,16 @@
 
 Implementation of [Tacotron](https://arxiv.org/abs/1703.10135), an end-to-end neural network for speech synthesis.
 
-[Preliminary Sample](https://soundcloud.com/alex-barron-440014733/it-would-be-amazing-if-i-could-talk)
 
-As you can hear, output is pretty rough around the edges but you can make out words on new inputs such as the one above and it should get better with more training, tuning and data.
+## Samples
+
+The following playlist contains samples produced on unseen inputs by Tacotron trained for 250K steps on the Nancy Corpus with r=5. 
+
+[Samples](https://soundcloud.com/alex-barron-440014733/sets/tacotron-samples-1)
+
+As you can hear, output is pretty rough around the edges but you can make out words on new inputs and it should get better with more training, tuning and data.
+
+Unsurprisingly, the biggest bottleneck to increased performance seems to be the quality and scale of the dataset. Google use an internal 25 hour dataset which is about 4 times the size of the Nancy corpus we use here so their results are more convincing. I have trained a model on ~20 hours of audiobook data from the 2013 Blizzard challenge, but inconsistent prosody and accents actually caused the outputs to sound much worse than those above. Any suggestions for a better dataset to try are welcomed.
 
 ## Requirements
 

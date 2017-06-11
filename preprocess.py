@@ -60,7 +60,7 @@ def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename, pad=True):
 
     inputs = texts, text_lens, mels, stfts, speech_lens
     names = 'texts', 'text_lens', 'mels', 'stfts', 'speech_lens'
-    names = ['data/' + filename + '/' + name for name in names]
+    names = ['data/%s/%s' % (filename, name) for name in names]
 
     for name, inp in zip(names, inputs):
         print(name, inp.shape)
@@ -69,7 +69,7 @@ def save_to_npy(texts, text_lens, mels, stfts, speech_lens, filename, pad=True):
 def preprocess_blizzard():
 
     num_to_keep = 30874
-    max_len = 70
+    max_len = 350 // audio.r
     blizz_dir = DATA_DIR + 'blizzard/train/unsegmented/' 
     txt_file = blizz_dir + 'prompts.data'
 
@@ -132,7 +132,7 @@ def preprocess_nancy():
             # now load wav file
             wav_file = nancy_dir + 'wavn/' + id + '.wav'
             mel, stft = audio.process_wav(wav_file, sr=16000)
-            if mel.shape[0] < 70:
+            if mel.shape[0] < 350 // audio.r:
                 texts.append(np.array(text))
                 text_lens.append(len(text))
                 mels.append(mel)
@@ -224,7 +224,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     preprocess_arctic()
-    preprocess_nancy()
-    #preprocess_blizzard()
+    if os.path.exists('data/nancy'):
+        preprocess_nancy()
 
 

@@ -10,14 +10,14 @@ import argparse
 
 import audio
 
-SAVE_EVERY = 5000
+SAVE_EVERY = 2000
 RESTORE_FROM = None
 
 def train(model, config, num_steps=1000000):
 
     sr = 24000 if 'blizzard' in config.data_path else 16000
     meta = data_input.load_meta(config.data_path)
-    assert config.r == meta['r']
+    config.r = meta['r']
     ivocab = meta['vocab']
     config.vocab_size = len(ivocab)
 
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     if args.debug: 
         config.save_path = 'debug'
     else:
-        config.save_path = args.train_set + '/tacotron'
+        config.save_path = '%s/tacotron' % args.train_set
     print('Buliding Tacotron')
 
     train(model, config)
