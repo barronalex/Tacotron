@@ -104,7 +104,7 @@ def prepare_vctk():
 
     return prompts, audio_files
 
-# Add need data preparation functions here
+# Add new data preparation functions here
 prepare_functions = {
         'arctic': prepare_arctic,
         'nancy': prepare_nancy,

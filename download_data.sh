@@ -1,6 +1,6 @@
 #!/bin/bash
-NANCY_USERNAME="admb@stanford.edu"
-NANCY_PASSWORD=" 92fhpqweuihas"
+NANCY_USERNAME=""
+NANCY_PASSWORD=""
 
 mkdir data
 mkdir weights

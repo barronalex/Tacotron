@@ -10,7 +10,7 @@ import sys
 import audio
 
 class Config(object):
-    max_decode_iter = 350 // audio.r
+    max_decode_iter = audio.maximum_audio_length // (audio.r*audio.hop_length)
     attention_units = 256
     decoder_units = 256
     mel_features = 80
