@@ -58,9 +58,6 @@ def load_from_npy(dirname):
     stft_std = np.std(stft[index], axis=(0,1), dtype=np.float32)
     mel_std = np.std(mel[index], axis=(0,1), dtype=np.float32)
 
-    np.save(dirname + 'stft_mean', stft_mean)
-    np.save(dirname + 'stft_std', stft_std)
-
     stft -= stft_mean
     mel -= mel_mean
     stft /= stft_std

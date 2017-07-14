@@ -24,15 +24,20 @@ ivocab[0] = '<pad>'
 
 """ 
     To add a new dataset, write a new prepare function such as those below
-    This needs to return two lists of strings:
+    This needs to return a dictionary containing 
+    the following two lists of strings:
 
-        prompts -- a list of strings 
-        audio_files -- a corresponding list of audio filenames (preferably wav)
+        'prompts' -- a list of strings of the text for each examples 
+        'audio_files' -- a corresponding list of audio filenames (preferably wav)
 
     Finally, add the function to the 'prepare_functions' dictionary below
 
-"""
+    Examples for the ARCTIC, Nancy and VCTK datasets are shown below
 
+    Note: For multi-speaker datasets, one can also add a 'speakers'
+    object to the dictionary
+    This contains the speaker id (an int) for each utterance
+"""
 def prepare_arctic():
     proto_file = DATA_DIR + 'arctic/train.proto'
     txt_file = DATA_DIR + 'arctic/etc/arctic.data'
@@ -52,7 +57,7 @@ def prepare_arctic():
             prompts.append(text)
             audio_files.append(audio_file)
 
-    return prompts, audio_files
+    return {'prompts': prompts, 'audio_files': audio_files}
 
 def prepare_nancy():
     nancy_dir = DATA_DIR + 'nancy/' 
@@ -71,7 +76,7 @@ def prepare_nancy():
             prompts.append(text)
             audio_files.append(audio_file)
 
-    return prompts, audio_files
+    return {'prompts': prompts, 'audio_files': audio_files}
 
 def prepare_vctk():
     # adapted from https://github.com/buriburisuri/speech-to-text-wavenet/blob/master/preprocess.py
@@ -79,6 +84,7 @@ def prepare_vctk():
 
     prompts = []
     audio_files = []
+    speakers = []
 
     # read label-info
     df = pd.read_table(DATA_DIR + 'VCTK-Corpus/speaker-info.txt', usecols=['ID'],
@@ -100,9 +106,9 @@ def prepare_vctk():
         prompts.append(text)
         audio_files.append(audio_file)
         
-        speaker = f[1:4]
+        speakers.append(f[1:4])
 
-    return prompts, audio_files
+    return {'prompts': prompts, 'audio_files': audio_files, 'speakers': speakers}
 
 # Add new data preparation functions here
 prepare_functions = {
@@ -153,10 +159,10 @@ def save_vocab(name, sr=16000):
     with open('data/%s/meta.pkl' % name, 'wb') as vf:
         pkl.dump({'vocab': ivocab, 'r': audio.r, 'sr': sr}, vf)
 
-def preprocess(prompts, audio_files, name, sr=16000):
+def preprocess(data, name, sr=16000):
 
     # get count of examples from text file
-    num_examples = len(prompts)
+    num_examples = len(data['prompts'])
 
     # pad out all these jagged arrays and store them in an npy file
     texts = []
@@ -164,11 +170,12 @@ def preprocess(prompts, audio_files, name, sr=16000):
     speech_lens = []
 
     max_freq_length = audio.maximum_audio_length // (audio.r*audio.hop_length)
-    stfts = np.zeros((num_examples, max_freq_length, 1025*audio.r))
-    mels = np.zeros((num_examples, max_freq_length, 80*audio.r))
+    stfts = np.zeros((num_examples, max_freq_length, 1025*audio.r), dtype=np.float16)
+    mels = np.zeros((num_examples, max_freq_length, 80*audio.r), dtype=np.float16)
 
     count = 0
-    for text, audio_file in tqdm(zip(prompts, audio_files), total=num_examples):
+    for text, audio_file in tqdm(
+            zip(data['prompts'], data['audio_files']), total=num_examples):
 
         text = [process_char(c) for c in list(text)]
         mel, stft = audio.process_audio(audio_file, sr=sr)
@@ -188,6 +195,9 @@ def preprocess(prompts, audio_files, name, sr=16000):
 
     save_to_npy(texts, text_lens, mels, stfts, speech_lens, name)
 
+    if 'speakers' in data:
+        np.save('data/%s/speakers.npy' % name, data['speakers'], allow_pickle=False)
+
     # save vocabulary
     save_vocab(name)
 
@@ -196,6 +206,9 @@ if __name__ == '__main__':
     parser.add_argument('dataset', help='specify the name of the dataset to preprocess')
     args = parser.parse_args()
     
-    prompts, audio_files = prepare_functions[args.dataset]()
-    preprocess(prompts, audio_files, args.dataset)
+    if args.dataset not in prepare_functions:
+        raise NotImplementedError('No prepare function exists for the %s dataset' % args.dataset)
+
+    data = prepare_functions[args.dataset]()
+    preprocess(data, args.dataset)
 

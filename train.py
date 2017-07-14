@@ -25,6 +25,10 @@ def train(model, config, num_steps=1000000):
 
         inputs, stft_mean, stft_std = data_input.load_from_npy(config.data_path)
 
+        # save the mean and std as tensorflow variables so they are saved with the weights
+        tf.Variable(stft_mean, name='stft_mean')
+        tf.Variable(stft_std, name='stft_std')
+
         batch_inputs = data_input.build_dataset(sess, inputs)
 
         # initialize model
