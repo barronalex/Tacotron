@@ -45,11 +45,11 @@ def process_wav(fname, n_fft=2048, win_length=1200, hop_length=300, sr=16000):
     stft = librosa.stft(wave, n_fft=n_fft, win_length=win_length, hop_length=hop_length)
     mel = librosa.feature.melspectrogram(S=stft, n_mels=80)
 
-    stft = np.log(np.abs(stft))
-    mel = np.log(np.abs(mel))
-
     stft = reshape_frames(stft)
+    stft = np.log(np.abs(stft) + 1e-10)
+
     mel = reshape_frames(mel)
+    mel = np.log(np.abs(mel) + 1e-10)
 
     return mel, stft
 
