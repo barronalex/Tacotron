@@ -3,3 +3,4 @@ data
 log
 weights
 __pycache__
+*.pyc
