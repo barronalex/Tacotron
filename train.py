@@ -10,7 +10,7 @@ import argparse
 
 import audio
 
-SAVE_EVERY = 2000
+SAVE_EVERY = 2
 RESTORE_FROM = None
 
 def train(model, config, num_steps=1000000):
@@ -23,16 +23,18 @@ def train(model, config, num_steps=1000000):
 
     with tf.Session() as sess:
 
-        inputs, stft_mean, stft_std = data_input.load_from_npy(config.data_path)
+        inputs, names, stft_mean, stft_std = data_input.load_from_npy(config.data_path)
 
         # save the mean and std as tensorflow variables so they are saved with the weights
         tf.Variable(stft_mean, name='stft_mean')
         tf.Variable(stft_std, name='stft_std')
 
-        batch_inputs = data_input.build_dataset(sess, inputs)
+        batch_inputs = data_input.build_dataset(sess, inputs, names)
 
         # initialize model
         model = model(config, batch_inputs, train=True)
+
+        #config.num_speakers = np.max(inputs['speakers']) + 1
 
         train_writer = tf.summary.FileWriter('log/' + config.save_path + '/train', sess.graph)
 

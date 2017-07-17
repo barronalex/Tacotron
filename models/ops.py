@@ -24,29 +24,29 @@ class InferenceHelper(CustomHelper):
         self._batch_size = batch_size
         self._out_size = out_size
 
-def highway(inputs, units=128, scope='highway'):
-    with tf.variable_scope(scope):
-        # correct input shape
-        if inputs.shape[-1] != units:
-            inputs = tf.layers.dense(inputs, units=units)
+def highway(inputs, units=128):
+    # correct input shape
+    if inputs.shape[-1] != units:
+        inputs = tf.layers.dense(inputs, units=units)
 
-        T = tf.layers.dense(
-                inputs,
-                units=units,
-                activation=tf.nn.sigmoid,
-        )
-        # TODO update bias initial value
+    T = tf.layers.dense(
+            inputs,
+            units=units,
+            activation=tf.nn.sigmoid,
+    )
+    # TODO update bias initial value
 
-        H = tf.layers.dense(
-                inputs,
-                units=units,
-                activation=tf.nn.relu
-        )
+    H = tf.layers.dense(
+            inputs,
+            units=units,
+            activation=tf.nn.relu
+    )
 
-        C = H*T + inputs*(1-T)
-        return C
+    C = H*T + inputs*(1-T)
+    return C
 
-def CBHG(inputs, K=16, c=[128,128,128], gru_units=128, num_highway_layers=4, num_conv_proj=2):
+def CBHG(inputs, speaker_embed=None,
+        K=16, c=[128,128,128], gru_units=128, num_highway_layers=4, num_conv_proj=2):
 
     with tf.variable_scope('cbhg'):
 
@@ -96,9 +96,22 @@ def CBHG(inputs, K=16, c=[128,128,128], gru_units=128, num_highway_layers=4, num
         # highway feature extraction
         h = conv_res
         for layer in range(num_highway_layers):
-            h = highway(h, scope='highway_' + str(layer))
+            with tf.variable_scope('highway_' + str(layer)):
+
+                # site specific speaker embedding
+                if speaker_embed:
+                    s = tf.layers.dense(speaker_embed, h.shape[-1])
+                    h = tf.concat([tf.expand_dims(s), h])
+
+                h = highway(h)
 
         tf.summary.histogram('highway_out', h)
+
+        # site specfic speaker embedding
+        if speaker_embed:
+            s = tf.layers.dense(speaker_embed, gru_units)
+        else:
+            s = None
 
         # bi-GRU
         forward_gru_cell = GRUCell(gru_units)
@@ -107,6 +120,8 @@ def CBHG(inputs, K=16, c=[128,128,128], gru_units=128, num_highway_layers=4, num
                 forward_gru_cell,
                 backward_gru_cell,
                 h,
+                initial_state_fw=s,
+                initial_state_bw=s,
                 dtype=tf.float32
         )
         out = tf.concat(out, 2)

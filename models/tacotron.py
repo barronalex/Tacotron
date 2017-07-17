@@ -18,6 +18,9 @@ class Config(object):
     fft_size = 1025
     dropout_prob = 0.5
 
+    num_speakers = 1
+    speaker_embed_dim = 16
+
     scheduled_sample = 0
 
     cap_grads = 5
@@ -92,7 +95,7 @@ class Tacotron(object):
 
         return dec
 
-    def inference(self, inputs, train=True):
+    def inference(self, inputs, train=True, multi_speaker=False):
         config = self.config
 
         # extract character representations from embedding
@@ -101,12 +104,22 @@ class Tacotron(object):
                     shape=(config.vocab_size, config.embed_dim), dtype=tf.float32)
             embedded_inputs = tf.nn.embedding_lookup(embedding, inputs['text'])
 
+        # extract speaker embedding if multi-speaker
+        with tf.variable_scope('speaker'):
+            if multi_speaker:
+                speaker_embed = tf.get_variable('speaker_embed',
+                        shape=(config.num_speakers, config.speaker_embed_dim), dtype=tf.float32)
+                speaker_embed = \
+                        tf.nn.embedding_lookup(speaker_embed, inputs['speaker'])
+            else:
+                speaker_embed = None
+
         # process text input with CBHG module 
         with tf.variable_scope('encoder'):
             pre_out = self.pre_net(embedded_inputs, train=train)
             tf.summary.histogram('pre_net_out', pre_out)
 
-            encoded = ops.CBHG(pre_out, K=16, c=[128,128,128], gru_units=128)
+            encoded = ops.CBHG(pre_out, speaker_embed, K=16, c=[128,128,128], gru_units=128)
 
         # pass through attention based decoder
         with tf.variable_scope('decoder'):
@@ -162,12 +175,13 @@ class Tacotron(object):
         train_op = opt.apply_gradients(zip(gradients, variables), global_step=self.global_step)
         return train_op
 
-    def __init__(self, config, inputs, train=True):
+    def __init__(self, config, inputs, train=True, multi_speaker=False):
         self.config = config
         self.lr = tf.placeholder(tf.float32)
-        self.seq2seq_output, self.output = self.inference(inputs, train)
+        self.seq2seq_output, self.output = self.inference(inputs, train, multi_speaker)
         if train:
-            self.loss = self.add_loss_op(self.seq2seq_output, self.output, inputs['mel'], inputs['stft'])
+            self.loss = self.add_loss_op(self.seq2seq_output, self.output,
+                    inputs['mel'], inputs['stft'])
             self.train_op = self.add_train_op(self.loss)
         self.merged = tf.summary.merge_all()
 

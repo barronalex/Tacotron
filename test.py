@@ -23,6 +23,9 @@ def test(model, config, prompt_file):
 
     with tf.Session() as sess:
 
+        stft_mean = tf.get_variable('stft_mean', shape=(1025*audio.r,), dtype=tf.float16)
+        stft_std = tf.get_variable('stft_std', shape=(1025*audio.r,), dtype=tf.float32)
+
         # initialize model
         model = model(config, batch_inputs, train=False)
 
@@ -41,7 +44,7 @@ def test(model, config, prompt_file):
         )
         saver.restore(sess, latest_ckpt)
 
-        stft_mean, stft_std = sess.run([tf.get_variable('stft_mean'), tf.get_variable('stft_std')])
+        stft_mean, stft_std = sess.run([stft_mean, stft_std])
 
         try:
             while(True):

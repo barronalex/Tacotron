@@ -8,14 +8,14 @@ import os
 import sys
 import io
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+#import matplotlib
+#matplotlib.use('Agg')
+#import matplotlib.pyplot as plt
 
 BATCH_SIZE = 32
 SHUFFLE_BUFFER_SIZE = 10000
 
-def build_dataset(sess, inputs):
+def build_dataset(sess, inputs, names):
     placeholders = []
     for inp in inputs:
         placeholders.append(tf.placeholder(inp.dtype, inp.shape))
@@ -28,7 +28,6 @@ def build_dataset(sess, inputs):
         iterator = dataset.make_initializable_iterator()
 
         batch_inputs = iterator.get_next()
-        names = ['text', 'text_length', 'stft', 'mel', 'speech_length']
         batch_inputs = {na: inp for na, inp in zip(names, batch_inputs)}
         for name, inp in batch_inputs.items():
             print(name, inp)
@@ -71,8 +70,14 @@ def load_from_npy(dirname):
     speech_length = np.ones(text.shape[0], dtype=np.int32)*mel.shape[1]
 
     inputs = list((text, text_length, stft, mel, speech_length))
-    
-    return inputs, stft_mean, stft_std
+    names = ['text', 'text_length', 'stft', 'mel', 'speech_length']
+
+    if os.path.exists(dirname + 'speakers.npy'):
+        speakers = np.load(dirname + 'speakers.npy')
+        inputs.append(speakers)
+        names.append('speaker')
+
+    return inputs, names, stft_mean, stft_std
 
 def pad(text, max_len, pad_val):
     return np.array(
