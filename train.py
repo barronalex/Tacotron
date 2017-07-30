@@ -10,12 +10,12 @@ import argparse
 
 import audio
 
-SAVE_EVERY = 2
+SAVE_EVERY = 5000
 RESTORE_FROM = None
 
 def train(model, config, num_steps=1000000):
 
-    sr = 24000 if 'blizzard' in config.data_path else 16000
+    sr = 24000 if 'vctk' in config.data_path else 16000
     meta = data_input.load_meta(config.data_path)
     config.r = meta['r']
     ivocab = meta['vocab']
@@ -23,7 +23,10 @@ def train(model, config, num_steps=1000000):
 
     with tf.Session() as sess:
 
-        inputs, names, stft_mean, stft_std = data_input.load_from_npy(config.data_path)
+        inputs, names, num_speakers, stft_mean, stft_std = \
+                data_input.load_from_npy(config.data_path)
+
+        config.num_speakers = num_speakers
 
         # save the mean and std as tensorflow variables so they are saved with the weights
         tf.Variable(stft_mean, name='stft_mean')
@@ -34,7 +37,6 @@ def train(model, config, num_steps=1000000):
         # initialize model
         model = model(config, batch_inputs, train=True)
 
-        #config.num_speakers = np.max(inputs['speakers']) + 1
 
         train_writer = tf.summary.FileWriter('log/' + config.save_path + '/train', sess.graph)
 

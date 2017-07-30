@@ -8,9 +8,9 @@ import os
 import sys
 import io
 
-#import matplotlib
-#matplotlib.use('Agg')
-#import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 BATCH_SIZE = 32
 SHUFFLE_BUFFER_SIZE = 10000
@@ -72,12 +72,15 @@ def load_from_npy(dirname):
     inputs = list((text, text_length, stft, mel, speech_length))
     names = ['text', 'text_length', 'stft', 'mel', 'speech_length']
 
+    num_speakers = 1
+
     if os.path.exists(dirname + 'speakers.npy'):
         speakers = np.load(dirname + 'speakers.npy')
         inputs.append(speakers)
         names.append('speaker')
+        num_speakers = np.max(speakers) + 1
 
-    return inputs, names, stft_mean, stft_std
+    return inputs, names, num_speakers, stft_mean, stft_std
 
 def pad(text, max_len, pad_val):
     return np.array(

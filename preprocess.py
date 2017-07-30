@@ -27,7 +27,7 @@ ivocab[0] = '<pad>'
     This needs to return a dictionary containing 
     the following two lists of strings:
 
-        'prompts' -- a list of strings of the text for each examples 
+        'prompts' -- a list of strings of the text for each example 
         'audio_files' -- a corresponding list of audio filenames (preferably wav)
 
     Finally, add the function to the 'prepare_functions' dictionary below
@@ -38,6 +38,7 @@ ivocab[0] = '<pad>'
     object to the dictionary
     This contains the speaker id (an int) for each utterance
 """
+
 def prepare_arctic():
     proto_file = DATA_DIR + 'arctic/train.proto'
     txt_file = DATA_DIR + 'arctic/etc/arctic.data'
@@ -87,18 +88,24 @@ def prepare_vctk():
     speakers = []
 
     # read label-info
-    df = pd.read_table(DATA_DIR + 'VCTK-Corpus/speaker-info.txt', usecols=['ID'],
+    df = pd.read_table(DATA_DIR + 'vctk/speaker-info.txt', usecols=['ID'],
                        index_col=False, delim_whitespace=True)
+
+    # assign speaker IDs
+    speaker_ids = {str(uid): i for i, uid in enumerate(df.ID.values)}
+    print(speaker_ids)
+    
+
     # read file IDs
     file_ids = []
-    for d in [DATA_DIR + 'VCTK-Corpus/txt/p%d/' % uid for uid in df.ID.values]:
+    for d in [DATA_DIR + 'vctk/txt/p%d/' % uid for uid in df.ID.values]:
         file_ids.extend([f[-12:-4] for f in sorted(glob.glob(d + '*.txt'))])
 
     for i, f in tqdm(enumerate(file_ids), total=len(file_ids)):
 
         # wave file name
-        audio_file = DATA_DIR + 'VCTK-Corpus/wav48/%s/' % f[:4] + f + '.wav'
-        txt_file = DATA_DIR + 'VCTK-Corpus/txt/%s/' % f[:4] + f + '.txt'
+        audio_file = DATA_DIR + 'vctk/wav48/%s/' % f[:4] + f + '.wav'
+        txt_file = DATA_DIR + 'vctk/txt/%s/' % f[:4] + f + '.txt'
 
         with open(txt_file, 'r') as tff:
             text = tff.read().strip()
@@ -106,7 +113,7 @@ def prepare_vctk():
         prompts.append(text)
         audio_files.append(audio_file)
         
-        speakers.append(f[1:4])
+        speakers.append(speaker_ids[f[1:4]])
 
     return {'prompts': prompts, 'audio_files': audio_files, 'speakers': speakers}
 
@@ -208,7 +215,7 @@ if __name__ == '__main__':
     
     if args.dataset not in prepare_functions:
         raise NotImplementedError('No prepare function exists for the %s dataset' % args.dataset)
-
+    sr = 24000 if args.dataset == 'vctk' else 16000
     data = prepare_functions[args.dataset]()
-    preprocess(data, args.dataset)
+    preprocess(data, args.dataset, sr=sr)
 

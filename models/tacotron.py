@@ -16,12 +16,14 @@ class Config(object):
     mel_features = 80
     embed_dim = 256
     fft_size = 1025
-    dropout_prob = 0.5
+
+    char_dropout_prob = 0.5
+    audio_dropout_prob = 0.5
 
     num_speakers = 1
     speaker_embed_dim = 16
 
-    scheduled_sample = 0
+    scheduled_sample = 0.5
 
     cap_grads = 5
 
@@ -33,15 +35,15 @@ class Config(object):
 class Tacotron(object):
     # transformation applied to input character sequence
     # and each input frame to the decoder
-    def pre_net(self, inputs, units=[256,128], train=True):
+    def pre_net(self, inputs, units=[256,128], dropout=0.5, train=True):
         with tf.variable_scope('pre_net'):
             layer_1 = tf.layers.dense(inputs, units[0], activation=tf.nn.relu)
-            layer_1 = tf.layers.dropout(layer_1, rate=self.config.dropout_prob, training=train)
+            layer_1 = tf.layers.dropout(layer_1, rate=dropout, training=train)
             layer_2 = tf.layers.dense(layer_1, units[1], activation=tf.nn.relu)
-            layer_2 = tf.layers.dropout(layer_2, rate=self.config.dropout_prob, training=train)
+            layer_2 = tf.layers.dropout(layer_2, rate=dropout, training=train)
         return layer_2
 
-    def create_decoder(self, encoded, inputs, train=True):
+    def create_decoder(self, encoded, inputs, speaker_embed, train=True):
         config = self.config
         attention_mech = wrapper.BahdanauAttention(
                 config.attention_units,
@@ -62,7 +64,9 @@ class Tacotron(object):
         decoder_frame_input = \
             lambda inputs, attention: tf.concat(
                     [self.pre_net(tf.slice(inputs,
-                        [0, (config.r - 1)*config.mel_features], [-1, -1]), train=train),
+                        [0, (config.r - 1)*config.mel_features], [-1, -1]),
+                        dropout=config.audio_dropout_prob,
+                        train=train),
                     attention]
                 , -1)
 
@@ -87,15 +91,20 @@ class Tacotron(object):
                     config.mel_features * config.r
             )
 
+        initial_state = cell.zero_state(dtype=tf.float32, batch_size=tf.shape(inputs['text'])[0])
+
+        #if speaker_embed is not None:
+            #initial_state.attention = tf.layers.dense(speaker_embed, config.attention_units)
+        
         dec = basic_decoder.BasicDecoder(
                 cell,
                 decoder_helper,
-                cell.zero_state(dtype=tf.float32, batch_size=tf.shape(inputs['text'])[0])
+                initial_state
         )
 
         return dec
 
-    def inference(self, inputs, train=True, multi_speaker=False):
+    def inference(self, inputs, train=True):
         config = self.config
 
         # extract character representations from embedding
@@ -106,7 +115,7 @@ class Tacotron(object):
 
         # extract speaker embedding if multi-speaker
         with tf.variable_scope('speaker'):
-            if multi_speaker:
+            if config.num_speakers > 1:
                 speaker_embed = tf.get_variable('speaker_embed',
                         shape=(config.num_speakers, config.speaker_embed_dim), dtype=tf.float32)
                 speaker_embed = \
@@ -116,14 +125,14 @@ class Tacotron(object):
 
         # process text input with CBHG module 
         with tf.variable_scope('encoder'):
-            pre_out = self.pre_net(embedded_inputs, train=train)
+            pre_out = self.pre_net(embedded_inputs, dropout=config.char_dropout_prob, train=train)
             tf.summary.histogram('pre_net_out', pre_out)
 
             encoded = ops.CBHG(pre_out, speaker_embed, K=16, c=[128,128,128], gru_units=128)
 
         # pass through attention based decoder
         with tf.variable_scope('decoder'):
-            dec = self.create_decoder(encoded, inputs, train)
+            dec = self.create_decoder(encoded, inputs, speaker_embed, train)
             (seq2seq_output, _), attention_state, _ = \
                     decoder.dynamic_decode(dec, maximum_iterations=config.max_decode_iter)
             self.alignments = tf.transpose(attention_state.alignment_history.stack(), [1,0,2])
@@ -175,10 +184,10 @@ class Tacotron(object):
         train_op = opt.apply_gradients(zip(gradients, variables), global_step=self.global_step)
         return train_op
 
-    def __init__(self, config, inputs, train=True, multi_speaker=False):
+    def __init__(self, config, inputs, train=True):
         self.config = config
         self.lr = tf.placeholder(tf.float32)
-        self.seq2seq_output, self.output = self.inference(inputs, train, multi_speaker)
+        self.seq2seq_output, self.output = self.inference(inputs, train)
         if train:
             self.loss = self.add_loss_op(self.seq2seq_output, self.output,
                     inputs['mel'], inputs['stft'])

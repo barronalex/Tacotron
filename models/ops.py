@@ -99,17 +99,19 @@ def CBHG(inputs, speaker_embed=None,
             with tf.variable_scope('highway_' + str(layer)):
 
                 # site specific speaker embedding
-                if speaker_embed:
-                    s = tf.layers.dense(speaker_embed, h.shape[-1])
-                    h = tf.concat([tf.expand_dims(s), h])
+                if speaker_embed is not None:
+                    print(speaker_embed)
+                    s = tf.layers.dense(speaker_embed, h.shape[-1], activation=tf.nn.relu)
+                    s = tf.tile(tf.expand_dims(s, 1), [1, tf.shape(h)[1], 1])
+                    h = tf.concat([h, s], 1)
 
                 h = highway(h)
 
         tf.summary.histogram('highway_out', h)
 
         # site specfic speaker embedding
-        if speaker_embed:
-            s = tf.layers.dense(speaker_embed, gru_units)
+        if speaker_embed is not None:
+            s = tf.layers.dense(speaker_embed, gru_units, activation=tf.nn.relu)
         else:
             s = None
 

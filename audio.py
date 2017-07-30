@@ -13,7 +13,7 @@ maximum_audio_length = 108000
 
 # NOTE: If you change the decoder output width r, make sure to rerun preprocess.py.
 # it stores the arrays in a different format based on this value
-r = 5
+r = 2
 
 # To allow the decoder to output multiple non-overlapping frames at each time step
 # we need to reshape the frames so that they appear in non-overlapping chunks
@@ -36,6 +36,9 @@ def reshape_frames(signal, forward=True):
 
 def process_audio(fname, n_fft=2048, win_length=1200, hop_length=300, sr=16000):
     wave, sr = librosa.load(fname, mono=True, sr=sr)
+
+    # trim initial silence
+    wave, _ = librosa.effects.trim(wave)
 
     # first pad the audio to the maximum length
     # we ensure it is a multiple of 4r so it works with max frames
