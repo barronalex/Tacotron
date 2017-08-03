@@ -10,7 +10,7 @@ import argparse
 
 import audio
 
-def test(model, config, prompt_file):
+def test(model, config, prompts):
 
     sr = 24000 if 'blizzard' in config.data_path else 16000
     meta = data_input.load_meta(config.data_path)
@@ -19,7 +19,8 @@ def test(model, config, prompt_file):
     config.vocab_size = len(ivocab)
 
     with tf.device('/cpu:0'):
-        batch_inputs, config.num_prompts = data_input.load_prompts(prompt_file, ivocab)
+        batch_inputs = data_input.load_prompts(prompts, ivocab)
+        config.num_prompts = len(prompts)
 
     with tf.Session() as sess:
 
@@ -72,9 +73,11 @@ def test(model, config, prompt_file):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('prompts')
     parser.add_argument('-t', '--train-set', default='nancy')
     args = parser.parse_args()
+
+    prompts = sys.stdin.readlines()
+    prompts = [p for p in prompts if len(p) > 0]
 
     from models.tacotron import Tacotron, Config
     model = Tacotron
@@ -83,4 +86,4 @@ if __name__ == '__main__':
     config.save_path = args.train_set + '/tacotron'
     print('Buliding Tacotron')
 
-    test(model, config, args.prompts)
+    test(model, config, prompts)

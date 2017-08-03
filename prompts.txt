@@ -1,1 +1,3 @@
-Let's see what happens if I make an example which is much longer than the intended length for this algorithm.
+These are some random things for my creation to say.
+I need a number of them to see if standard input is working.
+Maybe if I was able to train for longer or without scheduled sampling, it would work better.

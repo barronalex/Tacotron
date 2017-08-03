@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 BATCH_SIZE = 32
 SHUFFLE_BUFFER_SIZE = 10000
 
+MAX_TEXT_LEN = 140
+
 def build_dataset(sess, inputs, names):
     placeholders = []
     for inp in inputs:
@@ -87,22 +89,23 @@ def pad(text, max_len, pad_val):
         [np.pad(t, (0, max_len - len(t)), 'constant', constant_values=pad_val) for t in text]
     , dtype=np.int32)
 
-def load_prompts(prompt_file, ivocab):
+def load_prompts(prompts, ivocab):
     vocab = {v: k for k,v in ivocab.items()}
-    with open(prompt_file, 'r') as pf:
-        lines = pf.readlines() 
-        text = [[vocab[w] for w in l.strip() if w in vocab] for l in lines]
-        text_length = np.array([len(l) for l in lines])
-        text = pad(text, np.max(text_length), 0)
-        
-        inputs = tf.train.slice_input_producer([text, text_length], num_epochs=1)
-        inputs = {'text': inputs[0], 'text_length': inputs[1]}
+    text = [[vocab[w] for w in p.strip() if w in vocab] for p in prompts]
+    text_length = np.array([len(p) for p in prompts])
 
-        batches = tf.train.batch(inputs,
-                batch_size=32,
-                allow_smaller_final_batch=True)
-        print(batches)
-        return batches, len(lines)
+    # we pad out to a max text length comparable to that used in training
+    # this prevents repetition at the end of synthesized prompts
+    text = pad(text, MAX_TEXT_LEN, 0)
+    
+    inputs = tf.train.slice_input_producer([text, text_length], num_epochs=1)
+    inputs = {'text': inputs[0], 'text_length': inputs[1]}
+
+    batches = tf.train.batch(inputs,
+            batch_size=32,
+            allow_smaller_final_batch=True)
+
+    return batches
         
 def load_meta(data_path):
     with open('%smeta.pkl' % data_path, 'rb') as vf:

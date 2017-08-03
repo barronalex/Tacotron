@@ -1,5 +1,6 @@
 numpy
-tensorflow-gpu
 librosa
 tqdm
 pandas
+matplotlib
+tensorflow-gpu
