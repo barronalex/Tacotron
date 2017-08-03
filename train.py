@@ -52,7 +52,8 @@ def train(model, config, num_steps=1000000):
                 'weights/' + config.save_path[:config.save_path.rfind('/')]
             )
             if RESTORE_FROM is None:
-                saver.restore(sess, latest_ckpt)
+                if latest_ckpt is not None:
+                    saver.restore(sess, latest_ckpt)
             else:
                 saver.restore(sess, 'weights/' + config.save_path + '-' + str(RESTORE_FROM))
 
