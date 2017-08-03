@@ -1,6 +1,0 @@
-numpy
-librosa
-tqdm
-pandas
-matplotlib
-tensorflow-gpu

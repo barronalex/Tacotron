@@ -54,6 +54,7 @@ First run the data fetching script (preferably after obtaining a username and pa
 Then preprocess the data
 
 	python3 preprocess.py arctic
+
 	python3 preprocess.py nancy 
 
  Now we're ready to start training
