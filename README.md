@@ -39,7 +39,7 @@ First fetch the weights using the script provided
 
 	bash download_weights.sh
 
-Then pass prompts (separated by end lines) to 'test.py' through stdin
+Then pass prompts (separated by end lines) to 'test.py' through stdin. The audio appears in Tensorboard.
 
 	python3 test.py < prompts.txt
 	
@@ -68,13 +68,13 @@ Monitoring the attention alignments produced under the images tab in Tensorboard
 
 ## Updates
 
-I've begun to implement the multi-speaker tacotron architecture suggested by the [Deep Voice 2](https://arxiv.org/pdf/1705.08947.pdf) paper, but its currently untested. 'preprocess.py' has the VCTK corpus implemented but you need to download the data. Given the scale of this dataset (40 hours), I assume we'll get better results if we can get it to work.
-
 The memory usage has been significantly reduced. An 8 cpu instance on a cloud service should run the code with standard RAM. My macbook with 16GB of RAM also runs it fine (if incredibly slowly).
 The reason it's so high is because empirically I found that there was around a 2X speed increase when reading the data from memory instead of disk.
 
 With a K80 and r=2, we process 1 batch every ~2.5 seconds.
 With a GTX1080 and r=2, we process 1 batch every ~1.5 seconds. 
+
+I've begun to implement the multi-speaker tacotron architecture suggested by the [Deep Voice 2](https://arxiv.org/pdf/1705.08947.pdf) paper, but it's currently untested. 'preprocess.py' has the VCTK corpus implemented but you need to download the data. Given the scale of this dataset (40 hours), I assume we'll get better results if we can get it to work.
 
 Particularly if using a smaller dataset and no scheduled sampling, you're likely to see very different audio quality at training and test time, even on training examples.
 This is a result of how this seq2seq model is trained -- in training, the ground truth is provided at each time step in the decoder but in testing we must use the previous time step as input. This will be noisey and thus result in poorer quality future outputs. Scheduled sampling addresses this.

@@ -15,7 +15,6 @@ import argparse
 
 mini = False
 DATA_DIR = 'data/'
-MAX_LEN = 350 // audio.r
 
 vocab = {}
 ivocab = {}

@@ -96,57 +96,22 @@ def griffinlim(spectrogram, n_iter=50, window='hann', n_fft=2048, win_length=204
 
     return inverse
 
-# from https://github.com/tensorflow/tensorflow/pull/10643
-def arg(value, name=None):
-      return tf.atan2(tf.imag(value), tf.real(value))
-
-def griffinlim_tf(spectrogram, n_iter=50, window='hann', n_fft=2048, win_length=2048, hop_length=-1, verbose=False):
-    if hop_length == -1:
-        hop_length = n_fft // 4
-
-    angles = np.pi * tf.random_normal(spectrogram.shape)
-    angles = tf.exp(2j * tf.complex(angles, 0.0))
-
-    t = tqdm(range(n_iter), ncols=100, mininterval=2.0, disable=not verbose)
-    for i in t:
-        full = tf.complex(tf.abs(spectrogram), 0.0) * angles
-        inverse = tf.contrib.signal.inverse_stft(full, frame_length=win_length, frame_step=hop_length, fft_length=n_fft)
-        rebuilt = tf.contrib.signal.stft(inverse, frame_length=win_length, frame_step=hop_length, fft_length=n_fft)
-        angles = tf.exp(1j * tf.complex(arg(rebuilt), 0.0))
-
-    full = tf.complex(tf.abs(spectrogram), 0.0) * angles
-    inverse = tf.contrib.signal.inverse_stft(full, frame_length=win_length, frame_step=hop_length, fft_length=n_fft)
-    
-    return inverse
-
 if __name__ == '__main__':
     # simple tests
     fname = 'data/arctic/wav/arctic_a0001.wav'
     mel, stft = process_audio(fname)
 
-    print(stft.shape)
+    invert_spectrogram(stft, out_fn='test_inv32.wav')
 
-    stft = reshape_frames(stft, forward=False)
-    inv = griffinlim_tf(stft)
-    print(inv)
+    test = np.repeat(np.arange(40)[:, None] + 1, 7, axis=1)
+    out = reshape_frames(test.T)
 
-    with tf.Session() as sess:
-        inv = sess.run(inv)
-        print(inv.shape)
+    inv = reshape_frames(out, forward=False)
 
-    librosa.output.write_wav('tf_test.wav', inv, 16000)
+    print(test.shape)
+    print(out.shape)
+    print(inv.shape)
 
-    #invert_spectrogram(stft, out_fn='test_inv32.wav')
-
-    #test = np.repeat(np.arange(40)[:, None] + 1, 7, axis=1)
-    #out = reshape_frames(test.T)
-
-    #inv = reshape_frames(out, forward=False)
-
-    #print(test.shape)
-    #print(out.shape)
-    #print(inv.shape)
-
-    #assert np.array_equal(test, inv)
+    assert np.array_equal(test, inv)
 
 
