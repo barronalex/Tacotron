@@ -163,7 +163,7 @@ def save_vocab(name, sr=16000):
     global ivocab
     print('saving vocab')
     with open('data/%s/meta.pkl' % name, 'wb') as vf:
-        pkl.dump({'vocab': ivocab, 'r': audio.r, 'sr': sr}, vf)
+        pkl.dump({'vocab': ivocab, 'r': audio.r, 'sr': sr}, vf, protocol=2)
 
 def preprocess(data, name, sr=16000):
 

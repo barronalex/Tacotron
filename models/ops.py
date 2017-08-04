@@ -100,7 +100,6 @@ def CBHG(inputs, speaker_embed=None,
 
                 # site specific speaker embedding
                 if speaker_embed is not None:
-                    print(speaker_embed)
                     s = tf.layers.dense(speaker_embed, h.shape[-1], activation=tf.nn.relu)
                     s = tf.tile(tf.expand_dims(s, 1), [1, tf.shape(h)[1], 1])
                     h = tf.concat([h, s], 1)
