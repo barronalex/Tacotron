@@ -23,7 +23,7 @@ def build_dataset(sess, inputs, names):
         placeholders.append(tf.placeholder(inp.dtype, inp.shape))
 
     with tf.device('/cpu:0'):
-        dataset = tf.contrib.data.Dataset.from_tensor_slices(placeholders)
+        dataset = tf.contrib.data.Dataset.from_tensor_slices(tuple(placeholders))
         dataset = dataset.repeat()
         dataset = dataset.shuffle(buffer_size=SHUFFLE_BUFFER_SIZE)
         dataset = dataset.batch(BATCH_SIZE)
